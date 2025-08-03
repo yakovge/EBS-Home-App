@@ -1,0 +1,72 @@
+// Firestore Security Rules for EBS Home
+// Ensures data security and proper access control
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isMaintenancePerson() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.is_maintenance_person == true;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Users can read/write their own data, admins can read all
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Maintenance requests collection
+    match /maintenance_requests/{requestId} {
+      // All authenticated users can read
+      allow read: if isAuthenticated();
+      // Any user can create a request
+      allow create: if isAuthenticated() && request.auth.uid == resource.data.reporter_id;
+      // Only maintenance person or admin can update
+      allow update: if isMaintenancePerson() || isAdmin();
+      // Only admin can delete
+      allow delete: if isAdmin();
+    }
+    
+    // Bookings collection
+    match /bookings/{bookingId} {
+      // All authenticated users can read
+      allow read: if isAuthenticated();
+      // Users can create their own bookings
+      allow create: if isAuthenticated() && request.auth.uid == resource.data.user_id;
+      // Users can update their own bookings, admins can update any
+      allow update: if (isAuthenticated() && request.auth.uid == resource.data.user_id) || isAdmin();
+      // Only admin can delete
+      allow delete: if isAdmin();
+    }
+    
+    // Exit checklists collection
+    match /exit_checklists/{checklistId} {
+      // All authenticated users can read
+      allow read: if isAuthenticated();
+      // Users can create their own checklists
+      allow create: if isAuthenticated() && request.auth.uid == resource.data.user_id;
+      // Users can update their own incomplete checklists
+      allow update: if isAuthenticated() && 
+                      request.auth.uid == resource.data.user_id && 
+                      resource.data.is_complete == false;
+      // Only admin can delete
+      allow delete: if isAdmin();
+    }
+  }
+}

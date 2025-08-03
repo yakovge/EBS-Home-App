@@ -1,0 +1,65 @@
+// Firebase Storage Security Rules for EBS Home
+// Controls access to uploaded photos and files
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isValidImageType() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    function isReasonableSize() {
+      return request.resource.size < 10 * 1024 * 1024; // 10MB limit
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Maintenance request photos
+    match /maintenance/{userId}/{allPaths=**} {
+      // Users can upload their own maintenance photos
+      allow create: if isOwner(userId) && 
+                      isValidImageType() && 
+                      isReasonableSize();
+      
+      // All authenticated users can read maintenance photos
+      allow read: if isAuthenticated();
+      
+      // Only the owner can delete their photos
+      allow delete: if isOwner(userId);
+    }
+    
+    // Exit checklist photos
+    match /checklists/{userId}/{allPaths=**} {
+      // Users can upload their own checklist photos
+      allow create: if isOwner(userId) && 
+                      isValidImageType() && 
+                      isReasonableSize();
+      
+      // All authenticated users can read checklist photos
+      allow read: if isAuthenticated();
+      
+      // Only the owner can delete their photos
+      allow delete: if isOwner(userId);
+    }
+    
+    // User profile photos (if needed in future)
+    match /profiles/{userId}/{allPaths=**} {
+      allow create, read, update, delete: if isOwner(userId) && 
+                                             isValidImageType() && 
+                                             isReasonableSize();
+    }
+    
+    // Deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
