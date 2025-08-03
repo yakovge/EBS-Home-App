@@ -1,0 +1,81 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "submit": "Submit",
+    "close": "Close",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "maintenance": "Maintenance",
+    "bookings": "Bookings",
+    "checklist": "Exit Checklist",
+    "profile": "Profile",
+    "logout": "Logout"
+  },
+  "auth": {
+    "login": "Login",
+    "loginWithGoogle": "Login with Google",
+    "logout": "Logout",
+    "deviceNotAuthorized": "Device not authorized",
+    "sessionExpired": "Session expired"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome to EBS Home",
+    "currentBookings": "Current Bookings",
+    "pendingMaintenance": "Pending Maintenance",
+    "exitReminders": "Exit Reminders"
+  },
+  "maintenance": {
+    "title": "Maintenance Requests",
+    "createRequest": "Create Request",
+    "description": "Description",
+    "location": "Location",
+    "photos": "Photos",
+    "status": "Status",
+    "assignedTo": "Assigned To",
+    "resolutionNotes": "Resolution Notes",
+    "completed": "Completed",
+    "pending": "Pending",
+    "inProgress": "In Progress"
+  },
+  "booking": {
+    "title": "House Bookings",
+    "createBooking": "Create Booking",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "notes": "Notes",
+    "cancelled": "Cancelled",
+    "active": "Active",
+    "exitChecklistRequired": "Exit checklist required"
+  },
+  "checklist": {
+    "title": "Exit Checklist",
+    "submitChecklist": "Submit Checklist",
+    "refrigerator": "Refrigerator",
+    "freezer": "Freezer",
+    "closet": "Closet",
+    "photosRequired": "photos required",
+    "notesRequired": "Notes required for each photo",
+    "completed": "Completed",
+    "pending": "Pending"
+  },
+  "profile": {
+    "title": "Profile",
+    "name": "Name",
+    "email": "Email",
+    "language": "Language",
+    "deviceInfo": "Device Information",
+    "currentDevice": "Current Device"
+  }
+}

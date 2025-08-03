@@ -1,0 +1,81 @@
+{
+  "common": {
+    "loading": "טוען...",
+    "save": "שמור",
+    "cancel": "בטל",
+    "delete": "מחק",
+    "edit": "ערוך",
+    "submit": "הגש",
+    "close": "סגור",
+    "confirm": "אשר",
+    "yes": "כן",
+    "no": "לא",
+    "error": "שגיאה",
+    "success": "הצלחה",
+    "warning": "אזהרה"
+  },
+  "navigation": {
+    "dashboard": "דשבורד",
+    "maintenance": "תחזוקה",
+    "bookings": "הזמנות",
+    "checklist": "רשימת יציאה",
+    "profile": "פרופיל",
+    "logout": "התנתק"
+  },
+  "auth": {
+    "login": "התחבר",
+    "loginWithGoogle": "התחבר עם גוגל",
+    "logout": "התנתק",
+    "deviceNotAuthorized": "המכשיר לא מורשה",
+    "sessionExpired": "הפעלה פגה"
+  },
+  "dashboard": {
+    "title": "דשבורד",
+    "welcome": "ברוכים הבאים לבית EBS",
+    "currentBookings": "הזמנות נוכחיות",
+    "pendingMaintenance": "תחזוקה ממתינה",
+    "exitReminders": "תזכורות יציאה"
+  },
+  "maintenance": {
+    "title": "בקשות תחזוקה",
+    "createRequest": "צור בקשה",
+    "description": "תיאור",
+    "location": "מיקום",
+    "photos": "תמונות",
+    "status": "סטטוס",
+    "assignedTo": "הוקצה ל",
+    "resolutionNotes": "הערות פתרון",
+    "completed": "הושלם",
+    "pending": "ממתין",
+    "inProgress": "בתהליך"
+  },
+  "booking": {
+    "title": "הזמנות בית",
+    "createBooking": "צור הזמנה",
+    "startDate": "תאריך התחלה",
+    "endDate": "תאריך סיום",
+    "notes": "הערות",
+    "cancelled": "בוטל",
+    "active": "פעיל",
+    "exitChecklistRequired": "נדרשת רשימת יציאה"
+  },
+  "checklist": {
+    "title": "רשימת יציאה",
+    "submitChecklist": "הגש רשימה",
+    "refrigerator": "מקרר",
+    "freezer": "מקפיא",
+    "closet": "ארונות",
+    "photosRequired": "תמונות נדרשות",
+    "notesRequired": "נדרשות הערות לכל תמונה",
+    "completed": "הושלם",
+    "pending": "ממתין"
+  },
+  "profile": {
+    "title": "פרופיל",
+    "name": "שם",
+    "email": "אימייל",
+    "language": "שפה",
+    "deviceInfo": "מידע מכשיר",
+    "currentDevice": "מכשיר נוכחי"
+  }
+}
