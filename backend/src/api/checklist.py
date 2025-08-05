@@ -7,110 +7,56 @@ from flask import Blueprint, request, jsonify, current_app
 from typing import Dict, Any, List
 
 from ..services.checklist_service import ChecklistService
-from ..services.booking_service import BookingService
 from ..services.storage_service import StorageService
 from ..middleware.auth import require_auth
-from ..utils.validators import validate_request_data, validate_photo_data
+from ..utils.validators import validate_request_data
 from ..utils.exceptions import ValidationError, ResourceNotFoundError
-from ..models.checklist import PhotoType
 
 checklist_bp = Blueprint('checklist', __name__)
 checklist_service = ChecklistService()
-booking_service = BookingService()
 storage_service = StorageService()
 
 
-@checklist_bp.route('/', methods=['GET'])
+@checklist_bp.route('', methods=['GET'])
 @require_auth
 def list_checklists(current_user):
     """
-    List exit checklists with optional filtering.
-    Query params: user_id, booking_id, limit, offset
+    List exit checklists.
     """
     try:
-        filters = {}
-        
-        if request.args.get('user_id'):
-            filters['user_id'] = request.args.get('user_id')
-        
-        if request.args.get('booking_id'):
-            filters['booking_id'] = request.args.get('booking_id')
-        
-        # Pagination
-        limit = int(request.args.get('limit', 20))
-        offset = int(request.args.get('offset', 0))
-        
-        checklists = checklist_service.list_checklists(
-            filters=filters,
-            order_by='-submitted_at',
-            limit=limit,
-            offset=offset
-        )
-        
-        return jsonify({
-            'checklists': [checklist.to_dict() for checklist in checklists],
-            'total': len(checklists),
-            'limit': limit,
-            'offset': offset
-        }), 200
+        checklists = checklist_service.get_checklists()
+        return jsonify([checklist.to_dict() for checklist in checklists]), 200
         
     except Exception as e:
         current_app.logger.error(f"List checklists error: {str(e)}")
         return jsonify({'error': 'Failed to list checklists', 'message': str(e)}), 500
 
 
-@checklist_bp.route('/', methods=['POST'])
+@checklist_bp.route('', methods=['POST'])
 @require_auth
 def create_checklist(current_user):
     """
     Create new exit checklist.
-    Expects: { booking_id, photos: [{ photo_type, photo_url, notes }] }
+    Expects: { booking_id }
     """
     try:
         data = validate_request_data(request.json, {
-            'booking_id': {'type': str, 'required': True},
-            'photos': {'type': list, 'required': True}
+            'booking_id': {'type': str, 'required': True}
         })
         
-        # Verify booking exists and belongs to user
-        booking = booking_service.get_booking(data['booking_id'])
-        if booking.user_id != current_user.id:
-            return jsonify({
-                'error': 'Permission denied',
-                'message': 'You can only create checklists for your own bookings'
-            }), 403
-        
-        # Validate photos
-        required_photos = {
-            PhotoType.REFRIGERATOR.value: 2,
-            PhotoType.FREEZER.value: 2,
-            PhotoType.CLOSET.value: 3
-        }
-        validate_photo_data(data['photos'], required_photos)
-        
         # Create checklist
-        checklist = checklist_service.create_checklist(
+        checklist_id = checklist_service.create_checklist(
             user_id=current_user.id,
-            user_name=current_user.name,
-            booking_id=data['booking_id'],
-            photos=data['photos']
+            booking_id=data['booking_id']
         )
         
-        # Update booking with checklist completion
-        booking_service.mark_checklist_completed(
-            booking_id=data['booking_id'],
-            checklist_id=checklist.id
-        )
+        # Get the created checklist to return
+        checklist = checklist_service.get_checklist_by_id(checklist_id)
         
-        return jsonify({
-            'message': 'Exit checklist submitted successfully',
-            'checklist': checklist.to_dict()
-        }), 201
+        return jsonify(checklist.to_dict()), 201
         
     except (ValueError, ValidationError) as e:
         return jsonify({'error': 'Validation error', 'message': str(e)}), 400
-    except ResourceNotFoundError as e:
-        return jsonify({'error': 'Resource not found', 'message': str(e)}), 404
     except Exception as e:
         current_app.logger.error(f"Create checklist error: {str(e)}")
         return jsonify({'error': 'Failed to create checklist', 'message': str(e)}), 500
@@ -121,7 +67,7 @@ def create_checklist(current_user):
 def get_checklist(current_user, checklist_id):
     """Get specific checklist by ID."""
     try:
-        checklist = checklist_service.get_checklist(checklist_id)
+        checklist = checklist_service.get_checklist_by_id(checklist_id)
         return jsonify(checklist.to_dict()), 200
         
     except ResourceNotFoundError:
@@ -131,64 +77,138 @@ def get_checklist(current_user, checklist_id):
         return jsonify({'error': 'Failed to get checklist', 'message': str(e)}), 500
 
 
-@checklist_bp.route('/upload-url', methods=['POST'])
+@checklist_bp.route('/<checklist_id>/photos', methods=['POST'])
 @require_auth
-def get_upload_url(current_user):
+def add_photo_to_checklist(current_user, checklist_id):
     """
-    Get signed URL for photo upload.
-    Expects: { filename, content_type }
+    Add photo to checklist.
+    Expects: { photo_type, photo_url, notes }
     """
     try:
         data = validate_request_data(request.json, {
-            'filename': {'type': str, 'required': True},
-            'content_type': {'type': str, 'required': True}
+            'photo_type': {'type': str, 'required': True},
+            'photo_url': {'type': str, 'required': True},
+            'notes': {'type': str, 'required': True}
         })
         
-        # Validate content type is image
-        if not data['content_type'].startswith('image/'):
-            return jsonify({
-                'error': 'Invalid content type',
-                'message': 'Only image files are allowed'
-            }), 400
-        
-        # Generate upload URL
-        upload_info = storage_service.generate_upload_url(
-            filename=data['filename'],
-            content_type=data['content_type'],
-            user_id=current_user.id
+        # Add photo to checklist
+        success = checklist_service.add_photo_to_checklist(
+            checklist_id=checklist_id,
+            photo_type=data['photo_type'],
+            photo_url=data['photo_url'],
+            notes=data['notes']
         )
         
-        return jsonify(upload_info), 200
+        if not success:
+            return jsonify({'error': 'Failed to add photo'}), 400
         
-    except ValueError as e:
+        return jsonify({'message': 'Photo added successfully'}), 200
+        
+    except (ValueError, ValidationError) as e:
         return jsonify({'error': 'Validation error', 'message': str(e)}), 400
+    except ResourceNotFoundError:
+        return jsonify({'error': 'Checklist not found'}), 404
     except Exception as e:
-        current_app.logger.error(f"Generate upload URL error: {str(e)}")
-        return jsonify({'error': 'Failed to generate upload URL', 'message': str(e)}), 500
+        current_app.logger.error(f"Add photo error: {str(e)}")
+        return jsonify({'error': 'Failed to add photo', 'message': str(e)}), 500
 
 
-@checklist_bp.route('/requirements', methods=['GET'])
+@checklist_bp.route('/<checklist_id>/submit', methods=['POST'])
 @require_auth
-def get_checklist_requirements(current_user):
-    """Get checklist photo requirements."""
-    return jsonify({
-        'requirements': {
-            'refrigerator': {
-                'count': 2,
-                'description': 'Photos of refrigerator contents'
-            },
-            'freezer': {
-                'count': 2,
-                'description': 'Photos of freezer contents'
-            },
-            'closet': {
-                'count': 3,
-                'description': 'Photos of closets'
-            }
-        },
-        'notes': {
-            'required': True,
-            'min_length': 5,
-            'description': 'Describe what is present or missing in each photo'
-        }
-    }), 200
+def submit_checklist(current_user, checklist_id):
+    """
+    Submit checklist for completion.
+    """
+    try:
+        # Submit checklist
+        success = checklist_service.submit_checklist(checklist_id)
+        
+        if not success:
+            return jsonify({'error': 'Failed to submit checklist'}), 400
+        
+        # Get the submitted checklist to return
+        checklist = checklist_service.get_checklist_by_id(checklist_id)
+        
+        return jsonify({
+            'message': 'Checklist submitted successfully',
+            'checklist': checklist.to_dict()
+        }), 200
+        
+    except (ValueError, ValidationError) as e:
+        return jsonify({'error': 'Validation error', 'message': str(e)}), 400
+    except ResourceNotFoundError:
+        return jsonify({'error': 'Checklist not found'}), 404
+    except Exception as e:
+        current_app.logger.error(f"Submit checklist error: {str(e)}")
+        return jsonify({'error': 'Failed to submit checklist', 'message': str(e)}), 500
+
+
+@checklist_bp.route('/upload-photo', methods=['POST'])
+@require_auth
+def upload_checklist_photo(current_user):
+    """
+    Upload a photo for checklist items.
+    Expects multipart form data with 'photo' file, 'photo_type', and optional 'checklist_id'.
+    Returns the photo URL for use in checklist photo addition.
+    """
+    try:
+        # Check if photo file is present
+        if 'photo' not in request.files:
+            return jsonify({'error': 'No photo file provided'}), 400
+        
+        photo_file = request.files['photo']
+        if photo_file.filename == '':
+            return jsonify({'error': 'No photo file selected'}), 400
+        
+        # Get photo_type from form data
+        photo_type = request.form.get('photo_type')
+        if not photo_type:
+            return jsonify({'error': 'photo_type is required'}), 400
+        
+        # Validate photo_type
+        allowed_types = {'refrigerator', 'freezer', 'closet'}
+        if photo_type not in allowed_types:
+            return jsonify({'error': f'Invalid photo_type. Must be one of: {", ".join(allowed_types)}'}), 400
+        
+        # Validate file type and size
+        allowed_file_types = {'image/jpeg', 'image/jpg', 'image/png', 'image/webp'}
+        if photo_file.content_type not in allowed_file_types:
+            return jsonify({'error': 'Invalid file type. Only JPEG, PNG, and WebP are allowed'}), 400
+        
+        # Check file size (max 5MB)
+        max_size = 5 * 1024 * 1024  # 5MB
+        photo_file.seek(0, 2)  # Seek to end
+        file_size = photo_file.tell()
+        photo_file.seek(0)  # Reset to beginning
+        
+        if file_size > max_size:
+            return jsonify({'error': 'File size too large. Maximum 5MB allowed'}), 400
+        
+        # Read file bytes
+        file_bytes = photo_file.read()
+        filename = photo_file.filename
+        
+        # Get checklist_id from form data (optional for pre-creation uploads)
+        checklist_id = request.form.get('checklist_id', 'temp')
+        
+        # Upload photo to Firebase Storage
+        photo_url = storage_service.upload_checklist_photo(
+            user_id=current_user.id,
+            checklist_id=checklist_id,
+            photo_type=photo_type,
+            file_bytes=file_bytes,
+            filename=filename
+        )
+        
+        if not photo_url:
+            return jsonify({'error': 'Failed to upload photo'}), 500
+        
+        return jsonify({
+            'photo_url': photo_url,
+            'photo_type': photo_type,
+            'message': 'Photo uploaded successfully'
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Upload checklist photo error: {str(e)}")
+        return jsonify({'error': 'Failed to upload photo', 'message': str(e)}), 500
