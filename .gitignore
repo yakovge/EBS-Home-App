@@ -45,6 +45,8 @@ firestore-debug.log
 ui-debug.log
 pubsub-debug.log
 database-debug.log
+**/serviceAccountKey*.json
+serviceAccountKey*.json
 
 # Environment variables
 .env
@@ -97,3 +99,12 @@ coverage/
 .yarn/cache
 .yarn/unplugged
 .yarn/install-state.gz
+
+# Claude Settings (local only)
+.claude/settings.local.json
+
+# Temporary files
+*.tmp
+*.temp
+test_cors.py
+nul
