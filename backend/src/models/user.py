@@ -69,6 +69,7 @@ class User(BaseModel):
     
     def to_dict(self) -> Dict[str, Any]:
         return {
+            'id': self.id,
             'email': self.email,
             'name': self.name,
             'role': self.role,
@@ -120,6 +121,13 @@ class User(BaseModel):
         if self.preferred_language not in ['en', 'he']:
             raise ValueError("Invalid language preference")
         return True
+    
+    def is_valid(self) -> bool:
+        """Check if user data is valid (alias for validate for compatibility)."""
+        try:
+            return self.validate()
+        except ValueError:
+            return False
     
     def can_login_from_device(self, device_id: str) -> bool:
         """Check if user can login from a specific device."""

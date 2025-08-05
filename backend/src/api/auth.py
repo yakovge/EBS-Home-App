@@ -10,6 +10,7 @@ from ..services.auth_service import AuthService
 from ..services.user_service import UserService
 from ..middleware.auth import require_auth
 from ..utils.validators import validate_request_data
+from ..utils.exceptions import ValidationError, AuthenticationError
 
 auth_bp = Blueprint('auth', __name__)
 auth_service = AuthService()
@@ -18,11 +19,17 @@ user_service = UserService()
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
+    print("=== LOGIN ENDPOINT REACHED ===")
     """
     Login endpoint for Google authentication.
     Expects: { token: string, device_info: { device_id, device_name, platform } }
     Returns: { user: User, session_token: string }
     """
+    print("=== LOGIN REQUEST RECEIVED ===")
+    print(f"Request method: {request.method}")
+    print(f"Request content type: {request.content_type}")
+    print(f"Request data exists: {request.json is not None}")
+    
     try:
         data = validate_request_data(request.json, {
             'token': {'type': str, 'required': True},
@@ -36,6 +43,11 @@ def login():
                 }
             }
         })
+        
+        # Debug: Log the received token (first 20 chars only for security)
+        token_preview = data['token'][:20] + "..." if len(data['token']) > 20 else data['token']
+        print(f"DEBUG: Received token preview: {token_preview}")
+        print(f"DEBUG: Token length: {len(data['token'])}")
         
         # Verify Google token
         firebase_user = auth_service.verify_google_token(data['token'])
@@ -66,11 +78,22 @@ def login():
             'session_token': session_token
         }), 200
         
-    except ValueError as e:
+    except ValidationError as e:
         return jsonify({'error': 'Validation error', 'message': str(e)}), 400
+    except AuthenticationError as e:
+        # All authentication errors should be 400 (client error), not 500 (server error)
+        return jsonify({'error': 'Authentication error', 'message': str(e)}), 400
+    except ValueError as e:
+        return jsonify({'error': 'Authentication error', 'message': str(e)}), 400
     except Exception as e:
+        # Detailed error logging for debugging
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"CRITICAL LOGIN ERROR: {str(e)}")
+        print(f"FULL TRACEBACK: {error_details}")
         current_app.logger.error(f"Login error: {str(e)}")
-        return jsonify({'error': 'Login failed', 'message': str(e)}), 500
+        current_app.logger.error(f"Full traceback: {error_details}")
+        return jsonify({'error': 'Login failed', 'message': str(e), 'traceback': error_details}), 500
 
 
 @auth_bp.route('/logout', methods=['POST'])

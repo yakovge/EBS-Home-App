@@ -25,17 +25,22 @@ def initialize_firebase() -> None:
     if _firebase_initialized:
         return
     
-    # In production, use service account JSON file
-    # For development, use environment variables
-    if os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH'):
-        cred = credentials.Certificate(os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH'))
+    # Try to use service account JSON file first
+    service_account_path = os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH', 'serviceAccountKey.json')
+    if os.path.exists(service_account_path):
+        cred = credentials.Certificate(service_account_path)
     else:
-        # Build credentials from environment variables
+        # Fallback to environment variables
+        private_key = os.getenv('FIREBASE_PRIVATE_KEY', '')
+        if private_key:
+            # Handle the private key formatting properly
+            private_key = private_key.replace('\\n', '\n').strip('"')
+        
         service_account_info = {
             "type": "service_account",
             "project_id": os.getenv('FIREBASE_PROJECT_ID'),
             "private_key_id": os.getenv('FIREBASE_PRIVATE_KEY_ID'),
-            "private_key": os.getenv('FIREBASE_PRIVATE_KEY', '').replace('\\n', '\n'),
+            "private_key": private_key,
             "client_email": os.getenv('FIREBASE_CLIENT_EMAIL'),
             "client_id": os.getenv('FIREBASE_CLIENT_ID'),
             "auth_uri": os.getenv('FIREBASE_AUTH_URI'),
@@ -46,8 +51,18 @@ def initialize_firebase() -> None:
         cred = credentials.Certificate(service_account_info)
     
     # Initialize app
+    # Get project ID from service account or environment
+    project_id = None
+    if os.path.exists(service_account_path):
+        # Read project_id from service account file
+        with open(service_account_path, 'r') as f:
+            service_account_data = json.load(f)
+            project_id = service_account_data.get('project_id')
+    else:
+        project_id = os.getenv('FIREBASE_PROJECT_ID')
+    
     firebase_admin.initialize_app(cred, {
-        'storageBucket': f"{os.getenv('FIREBASE_PROJECT_ID')}.appspot.com"
+        'storageBucket': f"{project_id}.appspot.com"
     })
     
     _firebase_initialized = True
