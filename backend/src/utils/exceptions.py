@@ -57,3 +57,10 @@ class PermissionDeniedError(AppException):
     
     def __init__(self, message: str = "Permission denied", details: dict = None):
         super().__init__(message, status_code=403, details=details)
+
+
+class APIError(AppException):
+    """Raised when API operations fail."""
+    
+    def __init__(self, message: str = "API operation failed", status_code: int = 500, details: dict = None):
+        super().__init__(message, status_code=status_code, details=details)

@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { authService } from '@/services/authService'
+import { apiClient } from '@/services/api'
 
 // Mock API client
 vi.mock('@/services/api', () => ({
@@ -13,6 +14,8 @@ vi.mock('@/services/api', () => ({
     get: vi.fn(),
   },
 }))
+
+const mockApiClient = vi.mocked(apiClient)
 
 // Mock localStorage
 const localStorageMock = {
@@ -31,12 +34,12 @@ describe('AuthService', () => {
 
   describe('login', () => {
     it('should call API with correct data', async () => {
-      const { apiClient } = require('@/services/api')
+      // Use mocked apiClient
       const mockResponse = {
         user: { id: 'user-123', email: 'test@example.com' },
         session_token: 'mock-token',
       }
-      apiClient.post.mockResolvedValue(mockResponse)
+      mockApiClient.post.mockResolvedValue(mockResponse)
 
       const deviceInfo = {
         deviceId: 'device-123',
@@ -46,16 +49,20 @@ describe('AuthService', () => {
 
       const result = await authService.login('google-token', deviceInfo)
 
-      expect(apiClient.post).toHaveBeenCalledWith('/auth/login', {
+      expect(mockApiClient.post).toHaveBeenCalledWith('/auth/login', {
         token: 'google-token',
-        deviceInfo,
+        device_info: {
+          device_id: deviceInfo.deviceId,
+          device_name: deviceInfo.deviceName,
+          platform: deviceInfo.platform,
+        },
       })
       expect(result).toEqual(mockResponse)
     })
 
     it('should throw error on API failure', async () => {
-      const { apiClient } = require('@/services/api')
-      apiClient.post.mockRejectedValue(new Error('API Error'))
+      // Use mocked apiClient
+      mockApiClient.post.mockRejectedValue(new Error('API Error'))
 
       const deviceInfo = {
         deviceId: 'device-123',
@@ -71,36 +78,36 @@ describe('AuthService', () => {
 
   describe('logout', () => {
     it('should call logout API endpoint', async () => {
-      const { apiClient } = require('@/services/api')
-      apiClient.post.mockResolvedValue({})
+      // Use mocked apiClient
+      mockApiClient.post.mockResolvedValue({})
 
       await authService.logout()
 
-      expect(apiClient.post).toHaveBeenCalledWith('/auth/logout')
+      expect(mockApiClient.post).toHaveBeenCalledWith('/auth/logout')
     })
   })
 
   describe('verifySession', () => {
     it('should verify valid session', async () => {
-      const { apiClient } = require('@/services/api')
+      // Use mocked apiClient
       const mockResponse = {
         valid: true,
         user: { id: 'user-123', email: 'test@example.com' },
       }
-      apiClient.get.mockResolvedValue(mockResponse)
+      mockApiClient.get.mockResolvedValue(mockResponse)
 
       localStorageMock.getItem.mockReturnValue('existing-token')
 
       const result = await authService.verifySession('test-token')
 
       expect(localStorageMock.setItem).toHaveBeenCalledWith('session_token', 'test-token')
-      expect(apiClient.get).toHaveBeenCalledWith('/auth/verify')
+      expect(mockApiClient.get).toHaveBeenCalledWith('/auth/verify')
       expect(result).toEqual(mockResponse)
     })
 
     it('should restore original token on error', async () => {
-      const { apiClient } = require('@/services/api')
-      apiClient.get.mockRejectedValue(new Error('Invalid token'))
+      // Use mocked apiClient
+      mockApiClient.get.mockRejectedValue(new Error('Invalid token'))
 
       localStorageMock.getItem.mockReturnValue('original-token')
 
@@ -136,9 +143,9 @@ describe('AuthService', () => {
 
     it('should detect browser type', () => {
       // Mock user agent for Chrome
-      Object.defineProperty(navigator, 'userAgent', {
-        value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        configurable: true,
+      vi.stubGlobal('navigator', {
+        ...navigator,
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       })
 
       localStorageMock.getItem.mockReturnValue(null)
@@ -150,9 +157,9 @@ describe('AuthService', () => {
 
     it('should detect platform', () => {
       // Mock user agent for Windows
-      Object.defineProperty(navigator, 'userAgent', {
-        value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        configurable: true,
+      vi.stubGlobal('navigator', {
+        ...navigator,
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       })
 
       localStorageMock.getItem.mockReturnValue(null)

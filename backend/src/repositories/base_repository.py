@@ -177,3 +177,20 @@ class BaseRepository(ABC):
         
         batch.commit()
         return doc_ids
+    
+    def create_from_dict(self, data: Dict[str, Any]) -> str:
+        """
+        Create a document from dictionary data.
+        Utility method for repositories that need to convert dicts to models.
+        
+        Args:
+            data: Dictionary containing model data
+            
+        Returns:
+            str: Document ID of created document
+            
+        Note:
+            This is a helper method. Subclasses should implement their own
+            create_* methods that properly convert dicts to models.
+        """
+        raise NotImplementedError("Subclasses should implement their own create_from_dict methods")

@@ -3,7 +3,7 @@
  * Provides global notification system across the application.
  */
 
-import React, { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, ReactNode } from 'react'
 import { Snackbar, Alert, AlertColor } from '@mui/material'
 
 interface Notification {

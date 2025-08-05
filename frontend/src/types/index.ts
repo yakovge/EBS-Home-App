@@ -40,36 +40,36 @@ export enum MaintenanceStatus {
 
 export interface MaintenanceRequest {
   id?: string
-  reporterId: string
-  reporterName: string
+  reporter_id: string
+  reporter_name: string
   description: string
   location: string
-  photoUrls: string[]
+  photo_urls: string[]
   status: MaintenanceStatus
-  assignedToId?: string
-  assignedToName?: string
-  resolutionDate?: string
-  resolutionNotes?: string
-  maintenanceNotified: boolean
-  yaffaNotified: boolean
-  createdAt: string
-  updatedAt: string
+  assigned_to_id?: string
+  assigned_to_name?: string
+  resolution_date?: string
+  resolution_notes?: string
+  maintenance_notified: boolean
+  yaffa_notified: boolean
+  created_at: string
+  updated_at: string
 }
 
 // Booking types
 export interface Booking {
   id?: string
-  userId: string
-  userName: string
-  startDate: string
-  endDate: string
+  user_id: string
+  user_name: string
+  start_date: string
+  end_date: string
   notes?: string
-  isCancelled: boolean
-  exitChecklistCompleted: boolean
-  exitChecklistId?: string
-  reminderSent: boolean
-  createdAt: string
-  updatedAt: string
+  is_cancelled: boolean
+  exit_checklist_completed: boolean
+  exit_checklist_id?: string
+  reminder_sent: boolean
+  created_at: string
+  updated_at: string
 }
 
 // Checklist types

@@ -8,19 +8,21 @@ import { render, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import ProtectedRoute from '@/components/Auth/ProtectedRoute'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { useAuth } from '@/hooks/useAuth'
 
 // Mock the auth hook
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: vi.fn(),
 }))
 
+const mockUseAuth = vi.mocked(useAuth)
+
 // Mock child component
-const MockChild = () => <div>Protected Content</div>
+// const MockChild = () => <div>Protected Content</div> // TODO: Use in tests
 
 describe('ProtectedRoute', () => {
-  const renderWithProviders = (authState: any) => {
-    const { useAuth } = require('@/hooks/useAuth')
-    useAuth.mockReturnValue(authState)
+  const renderWithProviders = (authState: { user: any; loading: boolean }) => {
+    mockUseAuth.mockReturnValue(authState)
 
     return render(
       <BrowserRouter>

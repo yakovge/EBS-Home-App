@@ -16,10 +16,22 @@ from src.models.checklist import ExitChecklist, ChecklistPhoto, PhotoType
 @pytest.fixture
 def app():
     """Create and configure a test Flask application."""
-    app = Flask(__name__)
-    app.config['TESTING'] = True
-    app.config['SECRET_KEY'] = 'test-secret-key'
-    return app
+    # Mock Firebase components before importing
+    with patch('src.utils.firebase_config.initialize_firebase'), \
+         patch('src.utils.firebase_config.get_firestore_client') as mock_firestore, \
+         patch('firebase_admin.credentials.Certificate'), \
+         patch('firebase_admin.initialize_app'):
+        
+        # Configure mock Firestore client
+        mock_client = Mock()
+        mock_firestore.return_value = mock_client
+        
+        # Import and create the app
+        from app import create_app
+        app = create_app()
+        app.config['TESTING'] = True
+        app.config['SECRET_KEY'] = 'test-secret-key'
+        return app
 
 
 @pytest.fixture
@@ -117,5 +129,13 @@ def sample_checklist():
 @pytest.fixture(autouse=True)
 def mock_firebase_config():
     """Automatically mock Firebase configuration for all tests."""
-    with patch('src.utils.firebase_config.initialize_firebase'):
-        yield
+    with patch('src.utils.firebase_config.initialize_firebase'), \
+         patch('src.utils.firebase_config.get_firestore_client') as mock_firestore, \
+         patch('firebase_admin.credentials.Certificate'), \
+         patch('firebase_admin.initialize_app'), \
+         patch('google.cloud.firestore_v1.Client'):
+        
+        # Configure mock Firestore client
+        mock_client = Mock()
+        mock_firestore.return_value = mock_client
+        yield mock_client

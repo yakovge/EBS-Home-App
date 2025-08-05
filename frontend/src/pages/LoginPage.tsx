@@ -15,15 +15,16 @@ import {
   Alert,
 } from '@mui/material'
 import { Google as GoogleIcon } from '@mui/icons-material'
+import { signInWithPopup } from 'firebase/auth'
 
 import { useAuth } from '@/hooks/useAuth'
 import { useNotification } from '@/contexts/NotificationContext'
-import { authService } from '@/services/authService'
+import { auth, googleProvider } from '@/services/firebase'
 
 export default function LoginPage() {
   const { t } = useTranslation()
   const { login } = useAuth()
-  const { showError } = useNotification()
+  const { showError, showSuccess } = useNotification()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
 
@@ -32,21 +33,107 @@ export default function LoginPage() {
     setError('')
 
     try {
-      // This is a placeholder for Google Sign-In
-      // In a real implementation, you would use Firebase Auth or Google's OAuth
-      console.log('Google login clicked - implement Firebase Auth here')
+      // Sign in with Google using Firebase Auth
+      const result = await signInWithPopup(auth, googleProvider)
+      const user = result.user
       
-      // For demo purposes, show error about Firebase setup
-      setError('Google Sign-In requires Firebase configuration. Please set up Firebase Auth.')
+      if (!user) {
+        throw new Error('No user returned from Google Sign-In')
+      }
+
+      // Get the ID token for backend authentication
+      const idToken = await user.getIdToken()
       
-    } catch (err: any) {
+      // Get device information for backend
+      const deviceInfo = {
+        deviceId: getDeviceId(),
+        deviceName: getDeviceName(),
+        platform: getPlatform(),
+      }
+
+      // Call backend login endpoint
+      await login(idToken, deviceInfo)
+      
+      showSuccess('Successfully signed in!')
+      
+    } catch (err: unknown) {
       console.error('Login error:', err)
-      const errorMessage = err.message || 'Login failed'
+      
+      // Handle specific Firebase Auth errors
+      let errorMessage = 'Login failed'
+      
+      if (err.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Sign-in was cancelled'
+      } else if (err.code === 'auth/popup-blocked') {
+        errorMessage = 'Sign-in popup was blocked. Please allow popups for this site.'
+      } else if (err.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your internet connection.'
+      } else if (err.message) {
+        errorMessage = err.message
+      }
+      
       setError(errorMessage)
       showError(errorMessage)
     } finally {
       setLoading(false)
     }
+  }
+
+  // Device fingerprinting functions
+  const getDeviceId = (): string => {
+    let deviceId = localStorage.getItem('device_id')
+    
+    if (!deviceId) {
+      // Generate a device fingerprint
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      ctx?.fillText('Device fingerprint', 10, 10)
+      
+      const fingerprint = [
+        navigator.userAgent,
+        navigator.language,
+        screen.width,
+        screen.height,
+        new Date().getTimezoneOffset(),
+        canvas.toDataURL(),
+      ].join('|')
+
+      // Create a simple hash
+      let hash = 0
+      for (let i = 0; i < fingerprint.length; i++) {
+        const char = fingerprint.charCodeAt(i)
+        hash = ((hash << 5) - hash) + char
+        hash = hash & hash // Convert to 32-bit integer
+      }
+
+      deviceId = `device_${Math.abs(hash)}_${Date.now()}`
+      localStorage.setItem('device_id', deviceId)
+    }
+
+    return deviceId
+  }
+
+  const getDeviceName = (): string => {
+    const userAgent = navigator.userAgent
+    
+    if (userAgent.includes('Chrome')) return 'Chrome Browser'
+    if (userAgent.includes('Firefox')) return 'Firefox Browser'
+    if (userAgent.includes('Safari')) return 'Safari Browser'
+    if (userAgent.includes('Edge')) return 'Edge Browser'
+    
+    return 'Unknown Browser'
+  }
+
+  const getPlatform = (): string => {
+    const userAgent = navigator.userAgent.toLowerCase()
+    
+    if (userAgent.includes('win')) return 'Windows'
+    if (userAgent.includes('mac')) return 'macOS'
+    if (userAgent.includes('linux')) return 'Linux'
+    if (userAgent.includes('android')) return 'Android'
+    if (userAgent.includes('iphone') || userAgent.includes('ipad')) return 'iOS'
+    
+    return 'Unknown'
   }
 
   return (

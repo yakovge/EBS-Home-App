@@ -168,7 +168,7 @@ export default function ChecklistForm({ open, onClose, onSuccess, bookingId }: C
 
     try {
       // Create checklist first
-      const checklistResponse = await apiClient.post('/checklists', {
+      const checklistResponse = await apiClient.post<{id: string}>('/checklists', {
         booking_id: bookingId
       })
       

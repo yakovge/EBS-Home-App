@@ -100,7 +100,7 @@ class TestUser:
         assert data['name'] == "Test User"
         assert data['role'] == "admin"
         assert data['is_yaffa'] is True
-        assert data['id'] is None  # ID is set separately in to_dict
+        assert data['id'] == "user-123"  # ID is included in to_dict
     
     def test_user_from_dict(self):
         """Test user deserialization from dictionary."""

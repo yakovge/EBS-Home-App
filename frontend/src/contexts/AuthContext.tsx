@@ -3,14 +3,14 @@
  * Manages login, logout, and user session across the application.
  */
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { User } from '@/types'
 import { authService } from '@/services/authService'
 
 interface AuthContextType {
   user: User | null
   loading: boolean
-  login: (token: string, deviceInfo: any) => Promise<void>
+  login: (token: string, deviceInfo: { deviceId: string; deviceName: string; platform: string }) => Promise<void>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
 }
@@ -49,7 +49,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
-  const login = async (token: string, deviceInfo: any) => {
+  const login = async (token: string, deviceInfo: { deviceId: string; deviceName: string; platform: string }) => {
     try {
       setLoading(true)
       const response = await authService.login(token, deviceInfo)

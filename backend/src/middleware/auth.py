@@ -25,6 +25,7 @@ def setup_auth_middleware(app):
     @app.before_request
     def load_user():
         """Load user from auth token if present."""
+        print(f"=== MIDDLEWARE: {request.method} {request.path} ===")
         g.current_user = None
         
         # Skip auth for public endpoints
@@ -38,12 +39,19 @@ def setup_auth_middleware(app):
         
         try:
             token = auth_header.split(' ')[1]
-            user_id = auth_service.verify_session(token)
+            session_data = auth_service.verify_session(token)
             
-            if user_id:
-                user = user_service.get_user_by_id(user_id)
-                if user and user.is_active:
-                    g.current_user = user
+            if session_data:
+                # Handle both string user_id and dict response
+                if isinstance(session_data, dict):
+                    user_id = session_data.get('user_id')
+                else:
+                    user_id = session_data
+                    
+                if user_id:
+                    user = user_service.get_user_by_id(user_id)
+                    if user and user.is_active:
+                        g.current_user = user
                     
         except Exception as e:
             current_app.logger.error(f"Auth middleware error: {str(e)}")

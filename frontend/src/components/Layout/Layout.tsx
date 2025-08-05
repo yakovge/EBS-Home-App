@@ -12,8 +12,7 @@ import {
   Toolbar,
   Typography,
   IconButton,
-  useTheme,
-  useMediaQuery,
+
 } from '@mui/material'
 import { Menu as MenuIcon } from '@mui/icons-material'
 
@@ -22,8 +21,8 @@ import Sidebar from './Sidebar'
 const DRAWER_WIDTH = 280
 
 export default function Layout() {
-  const theme = useTheme()
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  // const theme = useTheme()
+  // const isMobile = useMediaQuery(theme.breakpoints.down('md')) // TODO: Use for mobile layout
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const handleDrawerToggle = () => {

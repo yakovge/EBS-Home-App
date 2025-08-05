@@ -24,9 +24,18 @@ interface DeviceInfo {
 
 class AuthService {
   async login(token: string, deviceInfo: DeviceInfo): Promise<LoginResponse> {
-    const data: LoginForm = {
+    // Debug logging
+    console.log('DEBUG: Token length:', token.length)
+    console.log('DEBUG: Token preview:', token.substring(0, 20) + '...')
+    console.log('DEBUG: Device info:', deviceInfo)
+    
+    const data = {
       token,
-      deviceInfo,
+      device_info: {
+        device_id: deviceInfo.deviceId,
+        device_name: deviceInfo.deviceName,
+        platform: deviceInfo.platform,
+      },
     }
 
     return apiClient.post<LoginResponse>('/auth/login', data)

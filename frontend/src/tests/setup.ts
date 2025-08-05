@@ -58,3 +58,38 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 })
+
+// Mock HTMLCanvasElement methods that are not implemented in jsdom
+Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+  value: vi.fn(() => ({
+    fillRect: vi.fn(),
+    getImageData: vi.fn(() => ({
+      data: new Uint8ClampedArray(4)
+    })),
+    fillText: vi.fn(),
+    measureText: vi.fn(() => ({ width: 0 })),
+  })),
+})
+
+Object.defineProperty(HTMLCanvasElement.prototype, 'toDataURL', {
+  value: vi.fn(() => 'data:image/png;base64,mock-canvas-data'),
+})
+
+// Mock screen property for responsive tests
+Object.defineProperty(window, 'screen', {
+  value: {
+    width: 1024,
+    height: 768,
+  },
+})
+
+// Mock navigator properties for device detection
+Object.defineProperty(window.navigator, 'userAgent', {
+  value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+  writable: true,
+})
+
+Object.defineProperty(window.navigator, 'platform', {
+  value: 'Win32',
+  writable: true,
+})
