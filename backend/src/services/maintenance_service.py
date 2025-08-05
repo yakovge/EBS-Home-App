@@ -34,26 +34,48 @@ class MaintenanceService:
             ValueError: If validation fails or user not found
             Exception: If repository operation fails
         """
+        print("=== MAINTENANCE SERVICE DEBUGGING ===")
+        print(f"SERVICE: create_maintenance_request called")
+        print(f"SERVICE: user_id = {user_id} (type: {type(user_id)})")
+        print(f"SERVICE: description = {description} (type: {type(description)})")
+        print(f"SERVICE: location = {location} (type: {type(location)})")
+        print(f"SERVICE: photo_urls = {photo_urls} (type: {type(photo_urls)})")
+        
         # Validate inputs
+        print("SERVICE: Starting input validation...")
         if not user_id or not user_id.strip():
+            print("SERVICE: User ID validation failed")
             raise ValueError("User ID is required")
         if not description or len(description.strip()) < 10:
+            print(f"SERVICE: Description validation failed (length: {len(description.strip()) if description else 0})")
             raise ValueError("Description must be at least 10 characters long")
         if not location or len(location.strip()) < 2:
+            print(f"SERVICE: Location validation failed (length: {len(location.strip()) if location else 0})")
             raise ValueError("Location must be at least 2 characters long")
-        if not photo_urls or len(photo_urls) == 0:
-            raise ValueError("At least one photo is required")
+        # Photos are now optional - allow empty photo_urls
+        if photo_urls is None:
+            photo_urls = []
+        print("SERVICE: Input validation passed")
         
         # Get user and validate
+        print(f"SERVICE: Getting user from repository: {user_id}")
         try:
             user = self.user_repository.get_by_id(user_id)
+            print(f"SERVICE: User repository returned: {user}")
+            print(f"SERVICE: User type: {type(user)}")
             if not user:
+                print("SERVICE: User not found in repository")
                 raise ValueError(f"User with ID {user_id} not found")
+            print(f"SERVICE: User found: {user.name} ({user.email})")
         except Exception as e:
-            print(f"Error: Failed to get user {user_id}: {str(e)}")
+            print(f"SERVICE ERROR: Failed to get user {user_id}: {str(e)}")
+            print(f"SERVICE ERROR TYPE: {type(e)}")
+            import traceback
+            print(f"SERVICE TRACEBACK: {traceback.format_exc()}")
             raise ValueError("Failed to validate user") from e
         
         # Prepare maintenance data
+        print("SERVICE: Preparing maintenance data...")
         maintenance_data = {
             'reporter_id': user_id,
             'reporter_name': user.name,
@@ -64,14 +86,20 @@ class MaintenanceService:
             'maintenance_notified': False,
             'yaffa_notified': False
         }
+        print(f"SERVICE: Maintenance data: {maintenance_data}")
         
         # Create maintenance request 
+        print("SERVICE: Calling repository create_maintenance_request...")
         try:
             request_id = self.maintenance_repository.create_maintenance_request(maintenance_data)
+            print(f"SERVICE: Repository returned request_id: {request_id}")
             print(f"Info: Created maintenance request {request_id} for user {user_id}")
             return request_id
         except Exception as e:
-            print(f"Error: Failed to create maintenance request for user {user_id}: {str(e)}")
+            print(f"SERVICE REPOSITORY ERROR: Failed to create maintenance request for user {user_id}: {str(e)}")
+            print(f"SERVICE REPOSITORY ERROR TYPE: {type(e)}")
+            import traceback
+            print(f"SERVICE REPOSITORY TRACEBACK: {traceback.format_exc()}")
             raise Exception("Failed to create maintenance request") from e
     
     def get_maintenance_requests(self, status: Optional[str] = None) -> List[MaintenanceRequest]:

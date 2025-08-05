@@ -41,13 +41,13 @@ def create_checklist(current_user):
     """
     try:
         data = validate_request_data(request.json, {
-            'booking_id': {'type': str, 'required': True}
+            'booking_id': {'type': str, 'required': False}
         })
         
         # Create checklist
         checklist_id = checklist_service.create_checklist(
             user_id=current_user.id,
-            booking_id=data['booking_id']
+            booking_id=data.get('booking_id')
         )
         
         # Get the created checklist to return
@@ -56,9 +56,12 @@ def create_checklist(current_user):
         return jsonify(checklist.to_dict()), 201
         
     except (ValueError, ValidationError) as e:
+        current_app.logger.warning(f"Create checklist validation error: {str(e)}")
         return jsonify({'error': 'Validation error', 'message': str(e)}), 400
     except Exception as e:
-        current_app.logger.error(f"Create checklist error: {str(e)}")
+        import traceback
+        current_app.logger.error(f"Create checklist unexpected error: {str(e)}")
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': 'Failed to create checklist', 'message': str(e)}), 500
 
 
@@ -77,11 +80,52 @@ def get_checklist(current_user, checklist_id):
         return jsonify({'error': 'Failed to get checklist', 'message': str(e)}), 500
 
 
+@checklist_bp.route('/<checklist_id>/entries', methods=['POST'])
+@require_auth
+def add_entry_to_checklist(current_user, checklist_id):
+    """
+    Add entry (text or photo) to checklist.
+    Photos are now optional - only notes are required.
+    Expects: { photo_type, notes, photo_url? }
+    """
+    try:
+        data = validate_request_data(request.json, {
+            'photo_type': {'type': str, 'required': True},
+            'notes': {'type': str, 'required': True},
+            'photo_url': {'type': str, 'required': False}
+        })
+        
+        # Add entry to checklist (text-only or with photo)
+        success = checklist_service.add_entry_to_checklist(
+            checklist_id=checklist_id,
+            photo_type=data['photo_type'],
+            notes=data['notes'],
+            photo_url=data.get('photo_url')  # Optional
+        )
+        
+        if not success:
+            return jsonify({'error': 'Failed to add entry'}), 400
+        
+        entry_type = "photo entry" if data.get('photo_url') else "text entry"
+        return jsonify({'message': f'Checklist {entry_type} added successfully'}), 200
+        
+    except (ValueError, ValidationError) as e:
+        current_app.logger.warning(f"Add entry validation error: {str(e)}")
+        return jsonify({'error': 'Validation error', 'message': str(e)}), 400
+    except ResourceNotFoundError:
+        return jsonify({'error': 'Checklist not found'}), 404
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"Add entry unexpected error: {str(e)}")
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': 'Failed to add entry', 'message': str(e)}), 500
+
+
 @checklist_bp.route('/<checklist_id>/photos', methods=['POST'])
 @require_auth
 def add_photo_to_checklist(current_user, checklist_id):
     """
-    Add photo to checklist.
+    Legacy endpoint for adding photos to checklist.
     Expects: { photo_type, photo_url, notes }
     """
     try:
@@ -91,7 +135,7 @@ def add_photo_to_checklist(current_user, checklist_id):
             'notes': {'type': str, 'required': True}
         })
         
-        # Add photo to checklist
+        # Add photo to checklist (backward compatibility)
         success = checklist_service.add_photo_to_checklist(
             checklist_id=checklist_id,
             photo_type=data['photo_type'],
@@ -105,11 +149,14 @@ def add_photo_to_checklist(current_user, checklist_id):
         return jsonify({'message': 'Photo added successfully'}), 200
         
     except (ValueError, ValidationError) as e:
+        current_app.logger.warning(f"Add photo validation error: {str(e)}")
         return jsonify({'error': 'Validation error', 'message': str(e)}), 400
     except ResourceNotFoundError:
         return jsonify({'error': 'Checklist not found'}), 404
     except Exception as e:
-        current_app.logger.error(f"Add photo error: {str(e)}")
+        import traceback
+        current_app.logger.error(f"Add photo unexpected error: {str(e)}")
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': 'Failed to add photo', 'message': str(e)}), 500
 
 
@@ -135,11 +182,14 @@ def submit_checklist(current_user, checklist_id):
         }), 200
         
     except (ValueError, ValidationError) as e:
+        current_app.logger.warning(f"Submit checklist validation error: {str(e)}")
         return jsonify({'error': 'Validation error', 'message': str(e)}), 400
     except ResourceNotFoundError:
         return jsonify({'error': 'Checklist not found'}), 404
     except Exception as e:
-        current_app.logger.error(f"Submit checklist error: {str(e)}")
+        import traceback
+        current_app.logger.error(f"Submit checklist unexpected error: {str(e)}")
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': 'Failed to submit checklist', 'message': str(e)}), 500
 
 
@@ -210,5 +260,7 @@ def upload_checklist_photo(current_user):
         }), 200
         
     except Exception as e:
+        import traceback
         current_app.logger.error(f"Upload checklist photo error: {str(e)}")
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': 'Failed to upload photo', 'message': str(e)}), 500

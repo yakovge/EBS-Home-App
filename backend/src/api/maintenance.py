@@ -45,7 +45,7 @@ def create_maintenance_request(current_user):
         data = validate_request_data(request.json, {
             'description': {'type': str, 'required': True, 'min_length': 10},
             'location': {'type': str, 'required': True, 'min_length': 2},
-            'photo_urls': {'type': list, 'required': True}
+            'photo_urls': {'type': list, 'required': False, 'default': []}
         })
         
         # Create request  
@@ -64,9 +64,12 @@ def create_maintenance_request(current_user):
         return jsonify(maintenance_request.to_dict()), 201
         
     except (ValueError, ValidationError) as e:
+        current_app.logger.warning(f"Create maintenance validation error: {str(e)}")
         return jsonify({'error': 'Validation error', 'message': str(e)}), 400
     except Exception as e:
-        current_app.logger.error(f"Create maintenance request error: {str(e)}")
+        import traceback
+        current_app.logger.error(f"Create maintenance unexpected error: {str(e)}")
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': 'Failed to create request', 'message': str(e)}), 500
 
 

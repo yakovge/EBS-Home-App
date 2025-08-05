@@ -100,9 +100,12 @@ def create_booking(current_user):
         }), 201
         
     except (ValueError, ConflictError, ValidationError) as e:
+        current_app.logger.warning(f"Create booking validation error: {str(e)}")
         return jsonify({'error': type(e).__name__, 'message': str(e)}), 400
     except Exception as e:
-        current_app.logger.error(f"Create booking error: {str(e)}")
+        import traceback
+        current_app.logger.error(f"Create booking unexpected error: {str(e)}")
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': 'Failed to create booking', 'message': str(e)}), 500
 
 

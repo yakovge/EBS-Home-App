@@ -3,7 +3,7 @@ Dashboard API endpoints for overview data and statistics.
 Provides aggregated data for the main dashboard view.
 """
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from flask_cors import cross_origin
 from src.services.maintenance_service import MaintenanceService
 from src.services.booking_service import BookingService
@@ -37,7 +37,10 @@ def get_dashboard_stats(current_user):
         return jsonify(stats), 200
         
     except Exception as e:
-        raise APIError(f"Failed to fetch dashboard stats: {str(e)}", 500)
+        import traceback
+        current_app.logger.error(f"Dashboard stats unexpected error: {str(e)}")
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': 'Failed to fetch dashboard stats', 'message': str(e)}), 500
 
 @dashboard_bp.route('/', methods=['GET'])
 @cross_origin()
@@ -70,4 +73,7 @@ def get_dashboard_data(current_user):
         return jsonify(dashboard_data), 200
         
     except Exception as e:
-        raise APIError(f"Failed to fetch dashboard data: {str(e)}", 500) 
+        import traceback
+        current_app.logger.error(f"Dashboard data unexpected error: {str(e)}")
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': 'Failed to fetch dashboard data', 'message': str(e)}), 500 

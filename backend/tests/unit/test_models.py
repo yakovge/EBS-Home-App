@@ -152,18 +152,18 @@ class TestMaintenanceRequest:
         with pytest.raises(ValueError, match="Description must be at least 10 characters"):
             request.validate()
     
-    def test_maintenance_request_validation_no_photos(self):
-        """Test validation fails with no photos."""
+    def test_maintenance_request_validation_no_photos_allowed(self):
+        """Test validation passes with no photos (photos are now optional)."""
         request = MaintenanceRequest(
             reporter_id="user-123",
             reporter_name="Test User",
             description="This is a valid description",
             location="Kitchen",
-            photo_urls=[]  # No photos
+            photo_urls=[]  # No photos - this should be allowed now
         )
         
-        with pytest.raises(ValueError, match="At least one photo is required"):
-            request.validate()
+        # This should not raise any validation errors
+        assert request.validate() is True
     
     def test_maintenance_request_assign(self):
         """Test assigning maintenance request to user."""
@@ -317,8 +317,8 @@ class TestExitChecklist:
         
         photo = ChecklistPhoto(
             PhotoType.REFRIGERATOR,
-            "https://example.com/fridge.jpg",
-            "Fridge is clean and organized"
+            "Fridge is clean and organized",
+            "https://example.com/fridge.jpg"
         )
         
         checklist.add_photo(photo)
@@ -326,41 +326,44 @@ class TestExitChecklist:
         assert len(checklist.photos) == 1
         assert checklist.photos[0].photo_type == PhotoType.REFRIGERATOR
     
-    def test_checklist_validation_missing_photos(self):
-        """Test validation fails with missing required photos."""
+    def test_checklist_validation_missing_categories(self):
+        """Test validation fails with missing required categories."""
         checklist = ExitChecklist(
             user_id="user-123",
             user_name="Test User",
             booking_id="booking-123"
         )
         
-        # Add only one refrigerator photo (need 2)
-        photo = ChecklistPhoto(
+        # Add only refrigerator entry (missing freezer and closet)
+        entry = ChecklistPhoto(
             PhotoType.REFRIGERATOR,
-            "https://example.com/fridge.jpg",
-            "Fridge photo"
+            "Fridge is clean and organized",
+            photo_url="https://example.com/fridge.jpg"
         )
-        checklist.add_photo(photo)
+        checklist.add_photo(entry)
         
-        with pytest.raises(ValueError, match="Missing 1 refrigerator photo"):
+        with pytest.raises(ValueError, match="Missing required entry for freezer"):
             checklist.validate()
     
     def test_checklist_validation_short_notes(self):
-        """Test validation fails with short photo notes."""
+        """Test validation fails with short notes."""
         checklist = ExitChecklist(
             user_id="user-123",
             user_name="Test User",
             booking_id="booking-123"
         )
         
-        photo = ChecklistPhoto(
-            PhotoType.REFRIGERATOR,
-            "https://example.com/fridge.jpg",
-            "OK"  # Too short
-        )
-        checklist.add_photo(photo)
+        # Add entries for all categories but with short notes
+        entries = [
+            ChecklistPhoto(PhotoType.REFRIGERATOR, "OK"),  # Too short
+            ChecklistPhoto(PhotoType.FREEZER, "Good notes here"),
+            ChecklistPhoto(PhotoType.CLOSET, "Also good notes here")
+        ]
         
-        with pytest.raises(ValueError, match="Photo notes must be at least 5 characters"):
+        for entry in entries:
+            checklist.add_photo(entry)
+        
+        with pytest.raises(ValueError, match="Notes must be at least 5 characters for refrigerator"):
             checklist.validate()
     
     def test_checklist_submit_success(self, sample_checklist):
@@ -371,9 +374,37 @@ class TestExitChecklist:
         assert sample_checklist.submitted_at is not None
     
     def test_checklist_get_photos_by_type(self, sample_checklist):
-        """Test getting photos by type."""
-        fridge_photos = sample_checklist.get_photos_by_type(PhotoType.REFRIGERATOR)
-        closet_photos = sample_checklist.get_photos_by_type(PhotoType.CLOSET)
+        """Test getting entries by type."""
+        fridge_entries = sample_checklist.get_photos_by_type(PhotoType.REFRIGERATOR)
+        freezer_entries = sample_checklist.get_photos_by_type(PhotoType.FREEZER)
+        closet_entries = sample_checklist.get_photos_by_type(PhotoType.CLOSET)
         
-        assert len(fridge_photos) == 2
-        assert len(closet_photos) == 3
+        assert len(fridge_entries) == 1
+        assert len(freezer_entries) == 1
+        assert len(closet_entries) == 1
+    
+    def test_checklist_text_only_entries(self):
+        """Test that text-only entries (without photos) work correctly."""
+        checklist = ExitChecklist(
+            user_id="user-123",
+            user_name="Test User",
+            booking_id="booking-123"
+        )
+        
+        # Add text-only entries for all categories
+        text_entries = [
+            ChecklistPhoto(PhotoType.REFRIGERATOR, "Refrigerator is clean and empty"),
+            ChecklistPhoto(PhotoType.FREEZER, "Freezer is defrosted and clean"),
+            ChecklistPhoto(PhotoType.CLOSET, "All closets are organized and tidy")
+        ]
+        
+        for entry in text_entries:
+            checklist.add_photo(entry)
+        
+        # Should validate successfully with just text entries
+        assert checklist.validate() is True
+        
+        # Should be able to submit
+        checklist.submit()
+        assert checklist.is_complete is True
+        assert checklist.submitted_at is not None

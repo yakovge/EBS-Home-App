@@ -25,10 +25,20 @@ class ChecklistRepository(BaseRepository):
         Returns:
             str: Document ID of the created checklist
         """
-        checklist_data['created_at'] = datetime.utcnow().isoformat()
-        checklist_data['updated_at'] = datetime.utcnow().isoformat()
-        checklist_data['is_complete'] = False
-        return self.create(checklist_data)
+        # Create ExitChecklist model from dictionary
+        checklist = ExitChecklist(
+            user_id=checklist_data['user_id'],
+            user_name=checklist_data['user_name'],
+            booking_id=checklist_data.get('booking_id', '')
+        )
+        
+        # Set additional fields
+        checklist.photos = []  # Start with empty photos list
+        checklist.is_complete = False
+        checklist.created_at = datetime.utcnow()
+        checklist.updated_at = datetime.utcnow()
+        
+        return self.create(checklist)
     
     def get_checklists(self, user_id: Optional[str] = None) -> List[ExitChecklist]:
         """
@@ -46,7 +56,12 @@ class ChecklistRepository(BaseRepository):
             query = query.where('user_id', '==', user_id)
         
         docs = query.order_by('created_at', direction='DESCENDING').stream()
-        return [ExitChecklist(**doc.to_dict()) for doc in docs]
+        results = []
+        for doc in docs:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            results.append(ExitChecklist.from_dict(data))
+        return results
     
     def get_checklist_by_id(self, checklist_id: str) -> Optional[ExitChecklist]:
         """
@@ -58,10 +73,8 @@ class ChecklistRepository(BaseRepository):
         Returns:
             Optional[ExitChecklist]: Checklist or None
         """
-        doc = self.get_by_id(checklist_id)
-        if doc:
-            return ExitChecklist(**doc)
-        return None
+        # Base repository already returns the correct ExitChecklist object
+        return self.get_by_id(checklist_id)
     
     def update_checklist(self, checklist_id: str, update_data: dict) -> bool:
         """
@@ -74,7 +87,7 @@ class ChecklistRepository(BaseRepository):
         Returns:
             bool: True if updated successfully
         """
-        update_data['updated_at'] = datetime.utcnow().isoformat()
+        update_data['updated_at'] = datetime.utcnow()
         return self.update(checklist_id, update_data)
     
     def submit_checklist(self, checklist_id: str) -> bool:
@@ -89,8 +102,8 @@ class ChecklistRepository(BaseRepository):
         """
         update_data = {
             'is_complete': True,
-            'submitted_at': datetime.utcnow().isoformat(),
-            'updated_at': datetime.utcnow().isoformat()
+            'submitted_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow()
         }
         return self.update(checklist_id, update_data)
     
@@ -106,7 +119,9 @@ class ChecklistRepository(BaseRepository):
         """
         docs = self.collection.where('booking_id', '==', booking_id).limit(1).stream()
         for doc in docs:
-            return ExitChecklist(**doc.to_dict())
+            data = doc.to_dict()
+            data['id'] = doc.id
+            return ExitChecklist.from_dict(data)
         return None
     
     def add_photo_to_checklist(self, checklist_id: str, photo_data: dict) -> bool:
@@ -124,12 +139,20 @@ class ChecklistRepository(BaseRepository):
         if not checklist:
             return False
         
-        # Add photo to the checklist
-        photos = checklist.photos if hasattr(checklist, 'photos') else []
-        photos.append(photo_data)
+        # Convert existing photos to dictionaries for storage
+        photos_data = []
+        for photo in checklist.photos:
+            if hasattr(photo, 'to_dict'):
+                photos_data.append(photo.to_dict())
+            else:
+                # It's already a dict
+                photos_data.append(photo)
+        
+        # Add the new photo data
+        photos_data.append(photo_data)
         
         update_data = {
-            'photos': photos,
-            'updated_at': datetime.utcnow().isoformat()
+            'photos': photos_data,
+            'updated_at': datetime.utcnow()
         }
         return self.update(checklist_id, update_data) 

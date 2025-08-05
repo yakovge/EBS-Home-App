@@ -127,13 +127,31 @@ export default function Calendar({ bookings, onCreateBooking, onUpdateBooking, l
 
   // Handle booking creation
   const handleCreateBooking = () => {
-    if (!selectedDates.start || !selectedDates.end) return
-    
-    // Check for conflicts
-    if (hasConflict(selectedDates.start, selectedDates.end)) {
-      setConflictError('Selected dates conflict with existing bookings')
+    if (!selectedDates.start || !selectedDates.end) {
+      setConflictError('Please select start and end dates for your booking')
       return
     }
+    
+    // Validate date range
+    if (selectedDates.end <= selectedDates.start) {
+      setConflictError('End date must be after start date')
+      return
+    }
+    
+    // Check if start date is in the past (but allow today)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Reset time to start of day
+    if (selectedDates.start < today) {
+      setConflictError('Start date cannot be in the past')
+      return
+    }
+    
+    // TEMPORARILY DISABLED - Let server handle conflict checking
+    // Check for conflicts
+    // if (hasConflict(selectedDates.start, selectedDates.end)) {
+    //   setConflictError('Selected dates conflict with existing bookings')
+    //   return
+    // }
     
     const startDate = selectedDates.start.toISOString().split('T')[0]
     const endDate = selectedDates.end.toISOString().split('T')[0]
@@ -329,11 +347,48 @@ export default function Calendar({ bookings, onCreateBooking, onUpdateBooking, l
             </Alert>
           )}
           
-          {selectedDates.start && selectedDates.end && (
+          {selectedDates.start && selectedDates.end ? (
             <Box sx={{ mb: 2 }}>
               <Typography variant="body2" color="text.secondary">
                 Booking from {selectedDates.start.toLocaleDateString()} to {selectedDates.end.toLocaleDateString()}
               </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Select dates by clicking on the calendar, or enter them manually:
+              </Typography>
+              <TextField
+                fullWidth
+                type="date"
+                label="Start Date"
+                value={selectedDates.start ? selectedDates.start.toISOString().split('T')[0] : ''}
+                inputProps={{ min: today.toISOString().split('T')[0] }}
+                onChange={(e) => {
+                  const date = new Date(e.target.value)
+                  if (!isNaN(date.getTime())) {
+                    setSelectedDates(prev => ({ ...prev, start: date }))
+                    setConflictError('')
+                  }
+                }}
+                sx={{ mb: 2 }}
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                fullWidth
+                type="date"
+                label="End Date"
+                value={selectedDates.end ? selectedDates.end.toISOString().split('T')[0] : ''}
+                inputProps={{ min: selectedDates.start ? selectedDates.start.toISOString().split('T')[0] : today.toISOString().split('T')[0] }}
+                onChange={(e) => {
+                  const date = new Date(e.target.value)
+                  if (!isNaN(date.getTime())) {
+                    setSelectedDates(prev => ({ ...prev, end: date }))
+                    setConflictError('')
+                  }
+                }}
+                InputLabelProps={{ shrink: true }}
+              />
             </Box>
           )}
           

@@ -28,6 +28,7 @@ def validate_date_range(start_date: date, end_date: date, max_days: int = 30) ->
     if start_date >= end_date:
         raise ValidationError("End date must be after start date")
     
+    # Allow bookings from today onwards (not just future dates)
     if start_date < date.today():
         raise ValidationError("Start date cannot be in the past")
     
@@ -69,8 +70,10 @@ def validate_request_data(data: Optional[Dict[str, Any]],
             errors[field_name] = f"{field_name} is required"
             continue
         
-        # Skip optional fields if not provided
+        # Skip optional fields if not provided, or use default value
         if value is None:
+            if 'default' in rules:
+                validated_data[field_name] = rules['default']
             continue
         
         # Type validation

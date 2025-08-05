@@ -18,14 +18,15 @@ class PhotoType(Enum):
 
 class ChecklistPhoto(BaseModel):
     """
-    Represents a single photo in the exit checklist.
-    Includes photo URL, type, and descriptive notes.
+    Represents a single photo or text entry in the exit checklist.
+    Includes optional photo URL, type, and descriptive notes.
+    Photos are now optional - only notes are required.
     """
     
     def __init__(self,
                  photo_type: PhotoType,
-                 photo_url: str,
                  notes: str,
+                 photo_url: Optional[str] = None,
                  order: int = 0):
         super().__init__()
         self.photo_type = photo_type
@@ -36,7 +37,7 @@ class ChecklistPhoto(BaseModel):
     def to_dict(self) -> Dict[str, Any]:
         return {
             'photo_type': self.photo_type.value,
-            'photo_url': self.photo_url,
+            'photo_url': self.photo_url,  # Can be None for text-only entries
             'notes': self.notes,
             'order': self.order,
             'created_at': self.created_at
@@ -46,8 +47,8 @@ class ChecklistPhoto(BaseModel):
     def from_dict(cls, data: Dict[str, Any]) -> 'ChecklistPhoto':
         photo = cls(
             photo_type=PhotoType(data['photo_type']),
-            photo_url=data['photo_url'],
             notes=data['notes'],
+            photo_url=data.get('photo_url'),  # Optional photo URL
             order=data.get('order', 0)
         )
         photo.created_at = data.get('created_at', datetime.utcnow())
@@ -57,14 +58,15 @@ class ChecklistPhoto(BaseModel):
 class ExitChecklist(BaseModel):
     """
     Represents a complete exit checklist submission.
-    Ensures all required photos and notes are provided.
+    Ensures all required text entries are provided for each category.
+    Photos are optional - only text notes are required.
     """
     
-    REQUIRED_PHOTOS = {
-        PhotoType.REFRIGERATOR: 2,
-        PhotoType.FREEZER: 2,
-        PhotoType.CLOSET: 3
-    }
+    REQUIRED_CATEGORIES = [
+        PhotoType.REFRIGERATOR,
+        PhotoType.FREEZER,
+        PhotoType.CLOSET
+    ]
     
     def __init__(self,
                  user_id: str,
@@ -118,22 +120,30 @@ class ExitChecklist(BaseModel):
     
     def validate(self) -> bool:
         """
-        Validate that all required photos are present.
+        Validate that text entries for all required categories are present.
+        Photos are optional - only notes are required for each category.
         Returns True if valid, raises ValueError if not.
+        
+        Note: For new checklists being created, we skip validation since
+        entries haven't been added yet. Full validation happens on submit.
         """
-        photo_counts = {photo_type: 0 for photo_type in PhotoType}
+        # Skip validation for new/empty checklists
+        if len(self.photos) == 0:
+            return True
+            
+        categories_with_entries = set()
         
-        for photo in self.photos:
-            if not photo.notes or len(photo.notes.strip()) < 5:
-                raise ValueError(f"Photo notes must be at least 5 characters for {photo.photo_type.value}")
-            photo_counts[photo.photo_type] += 1
+        for entry in self.photos:  # Now called "photos" but can be text-only entries
+            if not entry.notes or len(entry.notes.strip()) < 5:
+                raise ValueError(f"Notes must be at least 5 characters for {entry.photo_type.value}")
+            categories_with_entries.add(entry.photo_type)
         
-        for photo_type, required_count in self.REQUIRED_PHOTOS.items():
-            actual_count = photo_counts.get(photo_type, 0)
-            if actual_count < required_count:
+        # Check that all required categories have at least one entry (text or photo)
+        for required_category in self.REQUIRED_CATEGORIES:
+            if required_category not in categories_with_entries:
                 raise ValueError(
-                    f"Missing {required_count - actual_count} {photo_type.value} photo(s). "
-                    f"Required: {required_count}, Provided: {actual_count}"
+                    f"Missing required entry for {required_category.value}. "
+                    f"Please provide notes for each category: refrigerator, freezer, closets."
                 )
         
         return True

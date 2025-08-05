@@ -95,9 +95,8 @@ class MaintenanceRequest(BaseModel):
             raise ValueError("Description must be at least 10 characters")
         if not self.location or len(self.location.strip()) < 2:
             raise ValueError("Location must be specified")
-        if not self.photo_urls or len(self.photo_urls) == 0:
-            raise ValueError("At least one photo is required")
-        if len(self.photo_urls) > 5:
+        # Photos are now optional - allow empty photo_urls
+        if self.photo_urls and len(self.photo_urls) > 5:
             raise ValueError("Maximum 5 photos allowed")
         return True
     

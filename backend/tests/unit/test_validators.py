@@ -225,6 +225,30 @@ class TestRequestDataValidation:
         
         with pytest.raises(ValidationError, match="No data provided"):
             validate_request_data(None, schema)
+    
+    def test_validate_request_data_default_values(self):
+        """Test validation with default values for missing fields."""
+        schema = {
+            'name': {'type': str, 'required': True},
+            'tags': {'type': list, 'required': False, 'default': []},
+            'count': {'type': int, 'required': False, 'default': 0}
+        }
+        
+        # Test with missing optional fields - should use defaults
+        data = {'name': 'test'}
+        result = validate_request_data(data, schema)
+        
+        assert result['name'] == 'test'
+        assert result['tags'] == []
+        assert result['count'] == 0
+        
+        # Test with provided optional fields - should use provided values
+        data = {'name': 'test', 'tags': ['tag1'], 'count': 5}
+        result = validate_request_data(data, schema)
+        
+        assert result['name'] == 'test'
+        assert result['tags'] == ['tag1']
+        assert result['count'] == 5
 
 
 class TestPhotoDataValidation:

@@ -4,7 +4,7 @@ Extends BaseRepository with booking-specific functionality.
 """
 
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, date
 from ..models.booking import Booking
 from .base_repository import BaseRepository
 
@@ -47,8 +47,8 @@ class BookingRepository(BaseRepository):
         booking.is_cancelled = False
         booking.exit_checklist_completed = False
         booking.reminder_sent = False
-        booking.created_at = datetime.utcnow().isoformat()
-        booking.updated_at = datetime.utcnow().isoformat()
+        booking.created_at = datetime.utcnow()
+        booking.updated_at = datetime.utcnow()
         
         return self.create(booking)
     
@@ -68,7 +68,12 @@ class BookingRepository(BaseRepository):
             query = query.where('user_id', '==', user_id)
         
         docs = query.order_by('start_date', direction='ASCENDING').stream()
-        return [Booking(**doc.to_dict()) for doc in docs]
+        results = []
+        for doc in docs:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            results.append(Booking.from_dict(data))
+        return results
     
     def get_booking_by_id(self, booking_id: str) -> Optional[Booking]:
         """
@@ -80,10 +85,7 @@ class BookingRepository(BaseRepository):
         Returns:
             Optional[Booking]: Booking or None
         """
-        doc = self.get_by_id(booking_id)
-        if doc:
-            return Booking(**doc)
-        return None
+        return self.get_by_id(booking_id)
     
     def update_booking(self, booking_id: str, update_data: dict) -> bool:
         """
@@ -96,7 +98,7 @@ class BookingRepository(BaseRepository):
         Returns:
             bool: True if updated successfully
         """
-        update_data['updated_at'] = datetime.utcnow().isoformat()
+        update_data['updated_at'] = datetime.utcnow()
         return self.update(booking_id, update_data)
     
     def cancel_booking(self, booking_id: str) -> bool:
@@ -111,7 +113,7 @@ class BookingRepository(BaseRepository):
         """
         update_data = {
             'is_cancelled': True,
-            'updated_at': datetime.utcnow().isoformat()
+            'updated_at': datetime.utcnow()
         }
         return self.update(booking_id, update_data)
     
@@ -129,7 +131,7 @@ class BookingRepository(BaseRepository):
         update_data = {
             'exit_checklist_completed': True,
             'exit_checklist_id': checklist_id,
-            'updated_at': datetime.utcnow().isoformat()
+            'updated_at': datetime.utcnow()
         }
         return self.update(booking_id, update_data)
     
@@ -156,7 +158,8 @@ class BookingRepository(BaseRepository):
         
         for doc in docs:
             booking_data = doc.to_dict()
-            booking = Booking(**booking_data)
+            booking_data['id'] = doc.id
+            booking = Booking.from_dict(booking_data)
             
             # Check for date overlap
             if (booking.start_date <= end_date and booking.end_date >= start_date):

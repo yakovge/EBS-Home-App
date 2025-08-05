@@ -76,11 +76,41 @@ class TestMaintenanceService:
         # Verify repository was not called
         self.service.maintenance_repository.create_maintenance_request.assert_not_called()
         
+    def test_create_maintenance_request_without_photos(self):
+        """Test successful maintenance request creation without photos."""
+        # Setup mocks
+        mock_user = User('test@example.com', 'Test User', 'family_member', 'en', 'user-123')
+        self.service.user_repository.get_by_id.return_value = mock_user
+        self.service.maintenance_repository.create_maintenance_request.return_value = 'request-id-456'
+        
+        # Execute with empty photo_urls
+        result = self.service.create_maintenance_request(
+            user_id='user-123',
+            description='Water leak in bathroom sink needs fixing',
+            location='Bathroom',
+            photo_urls=[]
+        )
+        
+        # Verify
+        assert result == 'request-id-456'
+        
+        # Verify repository was called with correct data (empty photos)
+        self.service.maintenance_repository.create_maintenance_request.assert_called_once()
+        call_args = self.service.maintenance_repository.create_maintenance_request.call_args[0][0]
+        
+        assert call_args['reporter_id'] == 'user-123'
+        assert call_args['reporter_name'] == 'Test User'
+        assert call_args['description'] == 'Water leak in bathroom sink needs fixing'
+        assert call_args['location'] == 'Bathroom'
+        assert call_args['photo_urls'] == []
+        assert call_args['status'] == 'pending'
+        assert call_args['maintenance_notified'] == False
+        assert call_args['yaffa_notified'] == False
+        
     @pytest.mark.parametrize("user_id,description,location,photo_urls,expected_error", [
         ('', 'Valid description here', 'Kitchen', ['http://example.com/photo.jpg'], "User ID is required"),
         ('user-123', 'Short', 'Kitchen', ['http://example.com/photo.jpg'], "Description must be at least 10 characters long"),
         ('user-123', 'Valid description here', 'K', ['http://example.com/photo.jpg'], "Location must be at least 2 characters long"),
-        ('user-123', 'Valid description here', 'Kitchen', [], "At least one photo is required"),
     ])
     def test_create_maintenance_request_validation_errors(self, user_id, description, location, photo_urls, expected_error):
         """Test various validation errors for maintenance request creation."""

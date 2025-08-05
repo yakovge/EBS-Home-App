@@ -109,19 +109,15 @@ def sample_checklist():
         id="test-checklist-id"
     )
     
-    # Add required photos
-    photos = [
-        ChecklistPhoto(PhotoType.REFRIGERATOR, "https://example.com/fridge1.jpg", "Fridge contents noted", 1),
-        ChecklistPhoto(PhotoType.REFRIGERATOR, "https://example.com/fridge2.jpg", "Fridge clean", 2),
-        ChecklistPhoto(PhotoType.FREEZER, "https://example.com/freezer1.jpg", "Freezer contents noted", 1),
-        ChecklistPhoto(PhotoType.FREEZER, "https://example.com/freezer2.jpg", "Freezer clean", 2),
-        ChecklistPhoto(PhotoType.CLOSET, "https://example.com/closet1.jpg", "Closet 1 organized", 1),
-        ChecklistPhoto(PhotoType.CLOSET, "https://example.com/closet2.jpg", "Closet 2 organized", 2),
-        ChecklistPhoto(PhotoType.CLOSET, "https://example.com/closet3.jpg", "Closet 3 organized", 3),
+    # Add entries for all required categories (photos are now optional)
+    entries = [
+        ChecklistPhoto(PhotoType.REFRIGERATOR, "Fridge contents noted and clean", "https://example.com/fridge1.jpg", 1),
+        ChecklistPhoto(PhotoType.FREEZER, "Freezer contents noted and clean", "https://example.com/freezer1.jpg", 2),
+        ChecklistPhoto(PhotoType.CLOSET, "All closets organized and clean", "https://example.com/closet1.jpg", 3),
     ]
     
-    for photo in photos:
-        checklist.add_photo(photo)
+    for entry in entries:
+        checklist.add_photo(entry)
     
     return checklist
 

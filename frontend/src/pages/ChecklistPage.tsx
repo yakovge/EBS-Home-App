@@ -209,7 +209,7 @@ export default function ChecklistPage() {
           setShowForm(false)
           fetchChecklists()
         }}
-        bookingId="current-booking" // TODO: Get from current booking context
+        bookingId={undefined} // Allow standalone checklists
       />
     </Box>
   )

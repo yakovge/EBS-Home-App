@@ -5,7 +5,7 @@ Extends BaseRepository with maintenance-specific functionality.
 
 from typing import List, Optional
 from datetime import datetime
-from ..models.maintenance import MaintenanceRequest
+from ..models.maintenance import MaintenanceRequest, MaintenanceStatus
 from .base_repository import BaseRepository
 
 
@@ -38,8 +38,8 @@ class MaintenanceRepository(BaseRepository):
         maintenance_request.status = MaintenanceStatus.PENDING
         maintenance_request.maintenance_notified = maintenance_data.get('maintenance_notified', False)
         maintenance_request.yaffa_notified = maintenance_data.get('yaffa_notified', False)
-        maintenance_request.created_at = datetime.utcnow().isoformat()
-        maintenance_request.updated_at = datetime.utcnow().isoformat()
+        maintenance_request.created_at = datetime.utcnow()
+        maintenance_request.updated_at = datetime.utcnow()
         
         return self.create(maintenance_request)
     
@@ -59,7 +59,12 @@ class MaintenanceRepository(BaseRepository):
             query = query.where('status', '==', status)
         
         docs = query.order_by('created_at', direction='DESCENDING').stream()
-        return [MaintenanceRequest(**doc.to_dict()) for doc in docs]
+        results = []
+        for doc in docs:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            results.append(MaintenanceRequest.from_dict(data))
+        return results
     
     def get_maintenance_request_by_id(self, request_id: str) -> Optional[MaintenanceRequest]:
         """
@@ -71,10 +76,7 @@ class MaintenanceRepository(BaseRepository):
         Returns:
             Optional[MaintenanceRequest]: Maintenance request or None
         """
-        doc = self.get_by_id(request_id)
-        if doc:
-            return MaintenanceRequest(**doc)
-        return None
+        return self.get_by_id(request_id)
     
     def update_maintenance_request(self, request_id: str, update_data: dict) -> bool:
         """
@@ -87,7 +89,7 @@ class MaintenanceRepository(BaseRepository):
         Returns:
             bool: True if updated successfully
         """
-        update_data['updated_at'] = datetime.utcnow().isoformat()
+        update_data['updated_at'] = datetime.utcnow()
         return self.update(request_id, update_data)
     
     def assign_maintenance_request(self, request_id: str, assigned_to_id: str, assigned_to_name: str) -> bool:
@@ -106,7 +108,7 @@ class MaintenanceRepository(BaseRepository):
             'assigned_to_id': assigned_to_id,
             'assigned_to_name': assigned_to_name,
             'status': 'in_progress',
-            'updated_at': datetime.utcnow().isoformat()
+            'updated_at': datetime.utcnow()
         }
         return self.update(request_id, update_data)
     
@@ -124,7 +126,7 @@ class MaintenanceRepository(BaseRepository):
         update_data = {
             'status': 'completed',
             'resolution_notes': resolution_notes,
-            'resolution_date': datetime.utcnow().isoformat(),
-            'updated_at': datetime.utcnow().isoformat()
+            'resolution_date': datetime.utcnow(),
+            'updated_at': datetime.utcnow()
         }
         return self.update(request_id, update_data) 

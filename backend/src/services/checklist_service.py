@@ -19,13 +19,13 @@ class ChecklistService:
         self.booking_repository = BookingRepository()
         self.user_repository = UserRepository()
     
-    def create_checklist(self, user_id: str, booking_id: str) -> str:
+    def create_checklist(self, user_id: str, booking_id: Optional[str] = None) -> str:
         """
         Create a new exit checklist.
         
         Args:
             user_id: ID of the user creating the checklist
-            booking_id: ID of the booking
+            booking_id: Optional ID of the booking (can be None for standalone checklists)
             
         Returns:
             str: ID of the created checklist
@@ -34,14 +34,16 @@ class ChecklistService:
         if not user:
             raise ValueError("User not found")
         
-        booking = self.booking_repository.get_booking_by_id(booking_id)
-        if not booking:
-            raise ValueError("Booking not found")
+        # Booking is optional - validate only if provided
+        if booking_id:
+            booking = self.booking_repository.get_booking_by_id(booking_id)
+            if not booking:
+                raise ValueError("Booking not found")
         
         checklist_data = {
             'user_id': user_id,
             'user_name': user.name,
-            'booking_id': booking_id,
+            'booking_id': booking_id,  # Can be None
             'photos': []
         }
         
@@ -83,15 +85,16 @@ class ChecklistService:
         """
         return self.checklist_repository.get_checklist_by_booking(booking_id)
     
-    def add_photo_to_checklist(self, checklist_id: str, photo_type: str, photo_url: str, notes: str) -> bool:
+    def add_entry_to_checklist(self, checklist_id: str, photo_type: str, notes: str, photo_url: Optional[str] = None) -> bool:
         """
-        Add a photo to a checklist.
+        Add an entry (text or photo) to a checklist.
+        Photos are optional - only notes are required.
         
         Args:
             checklist_id: ID of the checklist
-            photo_type: Type of photo (refrigerator, freezer, closet)
-            photo_url: URL of the uploaded photo
-            notes: Notes about the photo
+            photo_type: Type of entry (refrigerator, freezer, closet)
+            notes: Notes about the entry (required)
+            photo_url: URL of the uploaded photo (optional)
             
         Returns:
             bool: True if added successfully
@@ -100,19 +103,29 @@ class ChecklistService:
         if not checklist:
             return False
         
-        photo_data = {
+        entry_data = {
             'photo_type': photo_type,
-            'photo_url': photo_url,
+            'photo_url': photo_url,  # Can be None for text-only entries
             'notes': notes,
             'order': len(checklist.photos) + 1,
             'created_at': datetime.utcnow().isoformat()
         }
         
-        return self.checklist_repository.add_photo_to_checklist(checklist_id, photo_data)
+        return self.checklist_repository.add_photo_to_checklist(checklist_id, entry_data)
+    
+    # Keep old method for backward compatibility
+    def add_photo_to_checklist(self, checklist_id: str, photo_type: str, photo_url: str, notes: str) -> bool:
+        """
+        Legacy method for adding photos to checklist.
+        Redirects to add_entry_to_checklist for backward compatibility.
+        """
+        return self.add_entry_to_checklist(checklist_id, photo_type, notes, photo_url)
     
     def submit_checklist(self, checklist_id: str) -> bool:
         """
         Submit a completed checklist.
+        Now validates that text entries are provided for all categories.
+        Photos are optional - only notes are required.
         
         Args:
             checklist_id: ID of the checklist to submit
@@ -124,32 +137,25 @@ class ChecklistService:
         if not checklist:
             return False
         
-        # Validate that all required photos are present
-        required_photos = {
-            'refrigerator': 2,
-            'freezer': 2,
-            'closet': 3
-        }
-        
-        photo_counts = {}
-        for photo in checklist.photos:
-            photo_type = photo.get('photo_type', '')
-            photo_counts[photo_type] = photo_counts.get(photo_type, 0) + 1
-        
-        # Check if all required photos are present
-        for photo_type, required_count in required_photos.items():
-            if photo_counts.get(photo_type, 0) < required_count:
-                raise ValueError(f"Missing required photos for {photo_type}")
+        # Use the model's validation method which now checks for text entries
+        try:
+            checklist.validate()
+        except ValueError as e:
+            raise ValueError(f"Checklist validation failed: {str(e)}")
         
         # Submit the checklist
         success = self.checklist_repository.submit_checklist(checklist_id)
         
-        if success:
-            # Mark the booking as having completed exit checklist
-            self.booking_repository.mark_exit_checklist_completed(
-                checklist.booking_id, 
-                checklist_id
-            )
+        if success and checklist.booking_id:
+            # Mark the booking as having completed exit checklist (only if booking exists)
+            try:
+                self.booking_repository.mark_exit_checklist_completed(
+                    checklist.booking_id, 
+                    checklist_id
+                )
+            except Exception as e:
+                print(f"Warning: Failed to update booking {checklist.booking_id}: {str(e)}")
+                # Don't fail the checklist submission if booking update fails
         
         return success
     

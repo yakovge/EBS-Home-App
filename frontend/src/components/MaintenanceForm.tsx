@@ -66,36 +66,48 @@ export default function MaintenanceForm({ open, onClose, onSuccess }: Maintenanc
   }
 
   const handleSubmit = async () => {
-    // Validation
+    // Validation - match backend requirements
     if (!description.trim()) {
       setError('Description is required')
+      return
+    }
+    if (description.trim().length < 10) {
+      setError('Description must be at least 10 characters long')
       return
     }
     if (!location) {
       setError('Location is required')
       return
     }
-    if (photos.length === 0) {
-      setError('At least one photo is required')
+    if (location.trim().length < 2) {
+      setError('Location must be at least 2 characters long')
       return
     }
+    // Photos are now optional - no validation needed
 
     setLoading(true)
     setError('')
 
     try {
-      // Upload photos first
+      // Upload photos if any are provided
       const photoUrls: string[] = []
-      for (let i = 0; i < photos.length; i++) {
-        const photo = photos[i]
-        const url = await uploadService.uploadMaintenancePhoto(
-          photo,
-          (progress) => setUploadProgress(Math.round((i + progress / 100) / photos.length * 100))
-        )
-        photoUrls.push(url)
+      if (photos.length > 0) {
+        for (let i = 0; i < photos.length; i++) {
+          const photo = photos[i]
+          try {
+            const url = await uploadService.uploadMaintenancePhoto(
+              photo,
+              (progress) => setUploadProgress(Math.round((i + progress / 100) / photos.length * 100))
+            )
+            photoUrls.push(url)
+          } catch (uploadError) {
+            console.warn('Photo upload failed, continuing without photo:', uploadError)
+            // Continue without this photo - don't fail the entire request
+          }
+        }
       }
 
-      // Create maintenance request
+      // Create maintenance request (works with or without photos)
       const response = await apiClient.post('/maintenance', {
         description: description.trim(),
         location,
@@ -139,15 +151,18 @@ export default function MaintenanceForm({ open, onClose, onSuccess }: Maintenanc
           <TextField
             fullWidth
             label={t('maintenance.description')}
+            placeholder="Describe the issue in detail (minimum 10 characters)"
+            helperText={`${description.length}/10 characters minimum`}
             multiline
             rows={4}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             disabled={loading}
+            error={description.length > 0 && description.trim().length < 10}
             sx={{ mb: 2 }}
           />
 
-          <FormControl fullWidth sx={{ mb: 2 }}>
+          <FormControl fullWidth sx={{ mb: 2 }} error={location.length > 0 && location.trim().length < 2}>
             <InputLabel>{t('maintenance.location')}</InputLabel>
             <Select
               value={location}
@@ -161,6 +176,11 @@ export default function MaintenanceForm({ open, onClose, onSuccess }: Maintenanc
                 </MenuItem>
               ))}
             </Select>
+            {location.length > 0 && location.trim().length < 2 && (
+              <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
+                Location must be at least 2 characters
+              </Typography>
+            )}
           </FormControl>
 
           <Box sx={{ mb: 2 }}>
@@ -216,7 +236,7 @@ export default function MaintenanceForm({ open, onClose, onSuccess }: Maintenanc
         <Button
           onClick={handleSubmit}
           variant="contained"
-          disabled={loading || !description || !location || photos.length === 0}
+          disabled={loading || !description || !location || description.trim().length < 10 || location.trim().length < 2}
         >
           {loading ? t('common.submitting') : t('common.submit')}
         </Button>
