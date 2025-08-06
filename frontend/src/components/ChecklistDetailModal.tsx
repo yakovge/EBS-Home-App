@@ -93,6 +93,8 @@ export default function ChecklistDetailModal({
   const photos = checklist.photos || []
 
   // Debug logging for troubleshooting (can be removed in production)
+  console.log('ChecklistDetailModal: Checklist data:', checklist)
+  console.log('ChecklistDetailModal: Photos array:', photos)
   if (photos.length === 0) {
     console.warn('ChecklistDetailModal: No entries found for checklist', checklist.id)
   }
@@ -253,8 +255,8 @@ export default function ChecklistDetailModal({
                       ))}
                     </Grid>
                   ) : (
-                    <Typography variant="body2" color="text.secondary" sx={{ ml: 3 }}>
-                      No entries for {getTypeLabel(type).toLowerCase()}
+                    <Typography variant="body2" color="text.secondary" sx={{ ml: 3, fontStyle: 'italic' }}>
+                      No photos uploaded yet for {getTypeLabel(type).toLowerCase()}
                     </Typography>
                   )}
                 </Box>

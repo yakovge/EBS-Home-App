@@ -89,10 +89,12 @@ export default function Calendar({ bookings, onCreateBooking, onUpdateBooking, l
     return bookings.filter(booking => {
       if (booking.is_cancelled) return false
       
-      const bookingStart = new Date(booking.start_date)
-      const bookingEnd = new Date(booking.end_date)
+      // Use date strings for comparison to avoid timezone issues
+      const dateStr = date.toISOString().split('T')[0]
+      const bookingStart = booking.start_date
+      const bookingEnd = booking.end_date
       
-      return date >= bookingStart && date <= bookingEnd
+      return dateStr >= bookingStart && dateStr <= bookingEnd
     })
   }
 
@@ -118,10 +120,13 @@ export default function Calendar({ bookings, onCreateBooking, onUpdateBooking, l
     return bookings.some(booking => {
       if (booking.is_cancelled) return false
       
-      const bookingStart = new Date(booking.start_date)
-      const bookingEnd = new Date(booking.end_date)
+      // Use date strings for comparison to avoid timezone issues
+      const startStr = startDate.toISOString().split('T')[0]
+      const endStr = endDate.toISOString().split('T')[0]
+      const bookingStart = booking.start_date
+      const bookingEnd = booking.end_date
       
-      return (startDate <= bookingEnd && endDate >= bookingStart)
+      return (startStr <= bookingEnd && endStr >= bookingStart)
     })
   }
 

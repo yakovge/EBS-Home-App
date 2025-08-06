@@ -228,7 +228,7 @@ export default function BookingPage() {
                         <ListItemText
                           primary={
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <Typography variant="subtitle2">
+                              <Typography variant="subtitle2" component="span">
                                 {booking.user_name}
                               </Typography>
                               <Chip
@@ -240,11 +240,11 @@ export default function BookingPage() {
                           }
                           secondary={
                             <Box>
-                              <Typography variant="body2" color="text.secondary">
+                              <Typography variant="body2" color="text.secondary" component="span">
                                 {formatDate(booking.start_date)} - {formatDate(booking.end_date)}
                               </Typography>
                               {booking.notes && (
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }} component="span">
                                   {booking.notes}
                                 </Typography>
                               )}
@@ -286,7 +286,7 @@ export default function BookingPage() {
                         <ListItemText
                           primary={
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <Typography variant="subtitle2">
+                              <Typography variant="subtitle2" component="span">
                                 {booking.user_name}
                               </Typography>
                               <Chip
@@ -298,11 +298,11 @@ export default function BookingPage() {
                           }
                           secondary={
                             <Box>
-                              <Typography variant="body2" color="text.secondary">
+                              <Typography variant="body2" color="text.secondary" component="span">
                                 {formatDate(booking.start_date)} - {formatDate(booking.end_date)}
                               </Typography>
                               {booking.notes && (
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }} component="span">
                                   {booking.notes}
                                 </Typography>
                               )}
@@ -320,6 +320,7 @@ export default function BookingPage() {
                                   startIcon={<CancelIcon />}
                                   onClick={() => handleCancelBooking(booking.id)}
                                   disabled={getBookingStatus(booking) === 'Past' || booking.is_cancelled}
+                                  aria-label={`Cancel booking for ${booking.user_name}`}
                                 >
                                   Cancel
                                 </Button>

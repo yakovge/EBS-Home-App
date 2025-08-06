@@ -213,15 +213,18 @@ export default function MaintenancePage() {
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             {request.photo_urls && request.photo_urls.length > 0 && (
                               <Tooltip title="View Photos">
-                                <IconButton
+                                <Button
+                                  size="small"
+                                  startIcon={<ImageIcon />}
                                   onClick={() => {
                                     setSelectedRequest(request)
                                     setShowPhotoModal(true)
                                   }}
                                   color="primary"
+                                  variant="outlined"
                                 >
-                                  <ImageIcon />
-                                </IconButton>
+                                  Photos
+                                </Button>
                               </Tooltip>
                             )}
                             {request.status === 'pending' && (
@@ -303,15 +306,18 @@ export default function MaintenancePage() {
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             {request.photo_urls && request.photo_urls.length > 0 && (
                               <Tooltip title="View Photos">
-                                <IconButton
+                                <Button
+                                  size="small"
+                                  startIcon={<ImageIcon />}
                                   onClick={() => {
                                     setSelectedRequest(request)
                                     setShowPhotoModal(true)
                                   }}
                                   color="primary"
+                                  variant="outlined"
                                 >
-                                  <ImageIcon />
-                                </IconButton>
+                                  Photos
+                                </Button>
                               </Tooltip>
                             )}
                             <Tooltip title="Mark as Unfixed">

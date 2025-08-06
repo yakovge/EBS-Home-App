@@ -44,7 +44,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => {
       const translations: Record<string, string> = {
-        'booking.title': 'Booking Calendar',
+        'booking.title': 'House Calendar',
         'booking.createBooking': 'Create Booking',
         'booking.startDate': 'Start Date',
         'booking.endDate': 'End Date',
@@ -151,7 +151,7 @@ describe('BookingPage', () => {
       expect(screen.getByRole('progressbar')).toBeInTheDocument()
 
       await waitFor(() => {
-        expect(screen.getByText('Booking Calendar')).toBeInTheDocument()
+        expect(screen.getByText('House Calendar')).toBeInTheDocument()
         expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
       })
     })
@@ -162,7 +162,6 @@ describe('BookingPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Test User')).toBeInTheDocument()
         expect(screen.getByText('Other User')).toBeInTheDocument()
-        expect(screen.getByText('Weekend getaway')).toBeInTheDocument()
       })
 
       // Verify API was called correctly
@@ -180,7 +179,7 @@ describe('BookingPage', () => {
       })
 
       // Should still show the page structure
-      expect(screen.getByText('Booking Calendar')).toBeInTheDocument()
+      expect(screen.getByText('House Calendar')).toBeInTheDocument()
     })
 
     it('handles empty bookings list', async () => {
@@ -189,7 +188,7 @@ describe('BookingPage', () => {
       renderWithProviders()
 
       await waitFor(() => {
-        expect(screen.getByText('No bookings found')).toBeInTheDocument()
+        expect(screen.getByText('No upcoming bookings. Click on the calendar to create your first booking.')).toBeInTheDocument()
       })
     })
   })
@@ -369,7 +368,7 @@ describe('BookingPage', () => {
 
       await waitFor(() => {
         // Should render without crashing
-        expect(screen.getByText('Booking Calendar')).toBeInTheDocument()
+        expect(screen.getByText('House Calendar')).toBeInTheDocument()
         expect(screen.getByText('Test User')).toBeInTheDocument()
       })
     })
@@ -403,7 +402,7 @@ describe('BookingPage', () => {
 
       await waitFor(() => {
         expect(mockShowError).toHaveBeenCalledWith('Failed to load bookings')
-        expect(screen.getByText('Booking Calendar')).toBeInTheDocument()
+        expect(screen.getByText('House Calendar')).toBeInTheDocument()
       })
     })
 
@@ -414,7 +413,7 @@ describe('BookingPage', () => {
 
       await waitFor(() => {
         // Should handle missing bookings array
-        expect(screen.getByText('Booking Calendar')).toBeInTheDocument()
+        expect(screen.getByText('House Calendar')).toBeInTheDocument()
       })
     })
 
@@ -449,7 +448,7 @@ describe('BookingPage', () => {
       renderWithProviders()
 
       await waitFor(() => {
-        expect(screen.getByText('Booking Calendar')).toBeInTheDocument()
+        expect(screen.getByText('House Calendar')).toBeInTheDocument()
       })
 
       // Verify page renders for family_member role

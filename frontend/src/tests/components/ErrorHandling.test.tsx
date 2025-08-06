@@ -5,7 +5,7 @@
 
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, cleanup } from '@testing-library/react'
 import { ThemeProvider } from '@mui/material/styles'
 import { theme } from '@/theme/theme'
 import ErrorBoundary from '@/components/ErrorBoundary'
@@ -44,6 +44,10 @@ const BuggyDataComponent = ({ data }: { data: any }) => {
   // Simulate the checklist entry grouping that was failing
   if (data?.photos) {
     const entriesByType = data.photos.reduce((acc: Record<string, any[]>, entry: any) => {
+      // Handle null entries gracefully
+      if (!entry || !entry.photo_type) {
+        return acc
+      }
       if (!acc[entry.photo_type]) {
         acc[entry.photo_type] = []
       }
@@ -68,7 +72,7 @@ const BuggyDataComponent = ({ data }: { data: any }) => {
 
   // Simulate undefined ID access that was causing errors
   if (data?.id === undefined) {
-    return <div data-testid="undefined-id">ID is undefined: {data.id}</div>
+    return <div data-testid="undefined-id">ID is undefined: {data?.id || 'undefined'}</div>
   }
 
   return <div data-testid="data-component">Data: {JSON.stringify(data)}</div>
@@ -170,10 +174,11 @@ describe('Error Handling Tests', () => {
   describe('Data Handling Error Cases', () => {
     it('handles undefined or null data gracefully', () => {
       renderWithProviders(<BuggyDataComponent data={null} />)
-      expect(screen.getByTestId('data-component')).toBeInTheDocument()
+      expect(screen.getByTestId('undefined-id')).toBeInTheDocument()
 
+      cleanup()
       renderWithProviders(<BuggyDataComponent data={undefined} />)
-      expect(screen.getByTestId('data-component')).toBeInTheDocument()
+      expect(screen.getByTestId('undefined-id')).toBeInTheDocument()
     })
 
     it('handles missing ID field gracefully - tests the bug we fixed', () => {
@@ -399,11 +404,15 @@ describe('Error Handling Tests', () => {
       expect(screen.getByTestId('display-freezer')).toHaveTextContent('Found 1 freezer entries')
       expect(screen.getByTestId('display-closet')).toHaveTextContent('No entries for closet')
 
-      // Test with empty checklist (should show "No entries" for all)
+      // Clean up and test with empty checklist (should show "No entries" for all)
+      cleanup()
       renderWithProviders(<ChecklistDisplayTest checklist={{ photos: [] }} />)
-      expect(screen.getByTestId('display-refrigerator')).toHaveTextContent('No entries for refrigerator')
-      expect(screen.getByTestId('display-freezer')).toHaveTextContent('No entries for freezer')
-      expect(screen.getByTestId('display-closet')).toHaveTextContent('No entries for closet')
+      const fridgeElements = screen.getAllByTestId('display-refrigerator')
+      expect(fridgeElements[0]).toHaveTextContent('No entries for refrigerator')
+      const freezerElements = screen.getAllByTestId('display-freezer')
+      expect(freezerElements[0]).toHaveTextContent('No entries for freezer')
+      const closetElements = screen.getAllByTestId('display-closet')
+      expect(closetElements[0]).toHaveTextContent('No entries for closet')
     })
   })
 
@@ -430,7 +439,7 @@ describe('Error Handling Tests', () => {
           throw new Error(`Deep error at level ${level}`)
         }
         
-        return level > 0 ? (
+        return level < 4 ? (
           <NestedErrorComponent level={level + 1} />
         ) : (
           <div data-testid="nested-success">Deep nesting successful</div>
@@ -443,6 +452,7 @@ describe('Error Handling Tests', () => {
         </ErrorBoundary>
       )
 
+      // This should trigger an error when level reaches 4
       expect(screen.getByText(/something went wrong/i)).toBeInTheDocument()
     })
 

@@ -492,9 +492,9 @@ describe('Critical Data Flow Integration Tests', () => {
         expect(screen.getByTestId('checklist-checklist-789')).toBeInTheDocument()
       })
 
-      // Test data correctness
-      expect(screen.getByText('Complete booking data')).toBeInTheDocument()
-      expect(screen.getByText('Complete maintenance request')).toBeInTheDocument()
+      // Test data correctness - use partial matching for text within elements
+      expect(screen.getByText(/Complete booking data/)).toBeInTheDocument()
+      expect(screen.getByText(/Complete maintenance request/)).toBeInTheDocument()
       expect(screen.getByTestId('status-maintenance-456')).toHaveTextContent('pending')
       expect(screen.getByTestId('fridge-count-checklist-789')).toHaveTextContent('1 refrigerator entries')
 

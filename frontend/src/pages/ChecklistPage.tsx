@@ -157,7 +157,7 @@ export default function ChecklistPage() {
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                   <CircularProgress />
                 </Box>
-              ) : checklists.length === 0 ? (
+              ) : !checklists || checklists.length === 0 ? (
                 <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
                   No checklists submitted yet. Click "New Checklist" to start your first exit checklist.
                 </Typography>
