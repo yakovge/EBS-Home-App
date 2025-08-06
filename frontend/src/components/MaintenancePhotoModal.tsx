@@ -45,6 +45,15 @@ export default function MaintenancePhotoModal({
   const [zoom, setZoom] = useState(1)
   const maxSteps = photos.length
 
+  // Log when modal opens to help debug the photo viewing issue
+  if (open) {
+    console.log('MaintenancePhotoModal opened:', {
+      photosCount: photos?.length || 0,
+      firstPhotoUrl: photos?.[0] || 'No photos',
+      hasValidPhotos: photos && photos.length > 0
+    })
+  }
+
   const handleNext = () => {
     setActiveStep((prevActiveStep) => prevActiveStep + 1)
     setZoom(1) // Reset zoom when changing photos
@@ -74,6 +83,12 @@ export default function MaintenancePhotoModal({
 
   const handleImageError = () => {
     console.error('Failed to load image:', photos[activeStep])
+    console.error('Image error details:', {
+      activeStep,
+      totalPhotos: photos.length,
+      allPhotos: photos,
+      currentPhoto: photos[activeStep]
+    })
     setLoading(false)
     setImageError(true)
   }
@@ -87,7 +102,7 @@ export default function MaintenancePhotoModal({
   }
 
   if (!photos || photos.length === 0) {
-    console.warn('MaintenancePhotoModal: No photos provided', { photos })
+    console.warn('MaintenancePhotoModal: No photos provided', { photos, photosLength: photos?.length, photosType: typeof photos })
     return (
       <Dialog open={open} onClose={onClose} maxWidth="sm">
         <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -195,10 +210,13 @@ export default function MaintenancePhotoModal({
                     Failed to Load Image
                   </Typography>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    The image could not be displayed. It may have been moved or deleted.
+                    The image could not be displayed. It may have been moved, deleted, or the URL is invalid.
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ wordBreak: 'break-all' }}>
                     URL: {photos[activeStep]}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    This could be due to: expired URL, network issues, or permission problems.
                   </Typography>
                 </Box>
               ) : (

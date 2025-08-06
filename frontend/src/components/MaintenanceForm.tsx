@@ -91,7 +91,11 @@ export default function MaintenanceForm({ open, onClose, onSuccess }: Maintenanc
     try {
       // Upload photos if any are provided
       const photoUrls: string[] = []
+      let uploadFailures = 0
+      
       if (photos.length > 0) {
+        console.log(`Attempting to upload ${photos.length} photos...`)
+        
         for (let i = 0; i < photos.length; i++) {
           const photo = photos[i]
           try {
@@ -100,11 +104,21 @@ export default function MaintenanceForm({ open, onClose, onSuccess }: Maintenanc
               (progress) => setUploadProgress(Math.round((i + progress / 100) / photos.length * 100))
             )
             photoUrls.push(url)
+            console.log(`Photo ${i + 1} uploaded successfully:`, url)
           } catch (uploadError) {
-            console.warn('Photo upload failed, continuing without photo:', uploadError)
+            uploadFailures++
+            console.error(`Photo ${i + 1} upload failed:`, uploadError)
             // Continue without this photo - don't fail the entire request
           }
         }
+        
+        if (uploadFailures > 0) {
+          const message = `${uploadFailures} out of ${photos.length} photos failed to upload`
+          console.warn(message)
+          showError(message)
+        }
+        
+        console.log(`Final photo URLs (${photoUrls.length}):`, photoUrls)
       }
 
       // Create maintenance request (works with or without photos)

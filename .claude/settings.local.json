@@ -29,7 +29,13 @@
       "Bash(del \"C:\\Users\\user\\Projects\\DeepSearch\\backend\\tests\\integration\\test_checklist_flow.py\")",
       "Bash(del srctestspagesBookingPage.test.tsx)",
       "Bash(del srctestspagesMaintenancePage.test.tsx)",
-      "Bash(del srctestspagesChecklistPage.test.tsx)"
+      "Bash(del srctestspagesChecklistPage.test.tsx)",
+      "Bash(timeout 90s npm test -- --run)",
+      "Bash(timeout 80s npm test -- --run)",
+      "Bash(timeout 60s npm test -- --run --testNamePattern=\"checklist\")",
+      "Bash(timeout 60s npm test -- --run --testNamePattern=\"Checklist\")",
+      "Bash(timeout 60s npm test:*)",
+      "Bash(timeout:*)"
     ],
     "deny": []
   }

@@ -307,12 +307,9 @@ export default function BookingPage() {
                                 </Typography>
                               )}
                               {booking.exit_checklist_completed && (
-                                <Chip 
-                                  label="Exit checklist completed" 
-                                  size="small" 
-                                  color="success" 
-                                  sx={{ mt: 1, display: 'block' }}
-                                />
+                                <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'success.main', fontWeight: 'bold' }} component="span">
+                                  ✓ Exit checklist completed
+                                </Typography>
                               )}
                               <span style={{ display: 'block', marginTop: '8px' }}>
                                 <Button

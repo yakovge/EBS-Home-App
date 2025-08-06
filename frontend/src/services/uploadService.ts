@@ -87,7 +87,20 @@ class UploadService {
     photoType: string,
     onProgress?: (progress: number) => void
   ): Promise<string> {
+    console.log('Uploading checklist photo:', file.name, 'Type:', photoType)
+    
     try {
+      // Check session token
+      const sessionToken = localStorage.getItem('session_token')
+      
+      if (!sessionToken) {
+        throw new Error('Authentication required. Please log in to upload photos.')
+      }
+      
+      if (sessionToken.length < 10) {  // Basic validation
+        throw new Error('Invalid authentication token. Please log in again.')
+      }
+      
       // Validate file first
       const validation = this.validateImageFile(file)
       if (!validation.valid) {
@@ -102,18 +115,22 @@ class UploadService {
       formData.append('photo', compressedFile)
       formData.append('photo_type', photoType)
       
-      // Call the backend API
       const response = await fetch('/api/checklists/upload-photo', {
         method: 'POST',
         body: formData,
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('session_token')}`
+          'Authorization': `Bearer ${sessionToken}`
         }
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Failed to upload photo')
+        let errorData
+        try {
+          errorData = await response.json()
+        } catch (e) {
+          errorData = { message: `HTTP ${response.status}: ${response.statusText}` }
+        }
+        throw new Error(errorData.message || `Upload failed: ${response.status} ${response.statusText}`)
       }
 
       const data = await response.json()
@@ -123,9 +140,10 @@ class UploadService {
         onProgress(100)
       }
       
+      console.log('Photo uploaded successfully:', data.photo_url)
       return data.photo_url
     } catch (error) {
-      console.error('Checklist photo upload failed:', error)
+      console.error('Checklist photo upload failed:', error.message)
       throw error
     }
   }

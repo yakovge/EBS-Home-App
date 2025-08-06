@@ -108,3 +108,7 @@ coverage/
 *.temp
 test_cors.py
 nul
+
+# Local upload storage (when Firebase Storage is unavailable)
+uploads/
+backend/uploads/

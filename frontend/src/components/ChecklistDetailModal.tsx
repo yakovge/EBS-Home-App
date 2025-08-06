@@ -27,10 +27,11 @@ import {
   Checkroom as CheckroomIcon,
   Image as ImageIcon,
   Notes as NotesIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material'
 
 interface ChecklistEntry {
-  photo_type: 'refrigerator' | 'freezer' | 'closet'
+  photo_type: 'refrigerator' | 'freezer' | 'closet' | 'general'
   notes: string
   photo_url?: string
   created_at: string
@@ -59,6 +60,8 @@ const getIconForType = (type: string) => {
       return <AcUnitIcon />
     case 'closet':
       return <CheckroomIcon />
+    case 'general':
+      return <EditIcon />
     default:
       return <ImageIcon />
   }
@@ -72,6 +75,8 @@ const getTypeLabel = (type: string) => {
       return 'Freezer'
     case 'closet':
       return 'Closets'
+    case 'general':
+      return 'General Notes'
     default:
       return type
   }
@@ -127,6 +132,7 @@ export default function ChecklistDetailModal({
         onClose={onClose}
         maxWidth="md"
         fullWidth
+        data-testid="checklist-detail-modal"
         PaperProps={{
           sx: {
             maxHeight: '90vh',
@@ -136,8 +142,11 @@ export default function ChecklistDetailModal({
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box>
             <Typography variant="h6">Exit Checklist Details</Typography>
-            <Typography variant="body2" color="text.secondary">
-              By {checklist.user_name} • {checklist.submitted_at ? new Date(checklist.submitted_at).toLocaleDateString() : 'Not submitted'}
+            <Typography variant="body2" color="text.secondary" data-testid="modal-user-name">
+              Checklist by {checklist.user_name} • {checklist.submitted_at ? new Date(checklist.submitted_at).toLocaleDateString() : 'Not submitted'}
+            </Typography>
+            <Typography variant="body2" color="primary" data-testid="modal-photos-count">
+              {photos.length} photo{photos.length !== 1 ? 's' : ''}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -203,7 +212,7 @@ export default function ChecklistDetailModal({
 
           {/* Checklist Entries */}
           <Grid container spacing={2}>
-            {['refrigerator', 'freezer', 'closet'].map((type) => (
+            {['refrigerator', 'freezer', 'closet', 'general'].map((type) => (
               <Grid item xs={12} key={type}>
                 <Box sx={{ mb: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -260,7 +269,7 @@ export default function ChecklistDetailModal({
                     </Typography>
                   )}
                 </Box>
-                {type !== 'closet' && <Divider sx={{ my: 2 }} />}
+                {type !== 'general' && <Divider sx={{ my: 2 }} />}
               </Grid>
             ))}
           </Grid>

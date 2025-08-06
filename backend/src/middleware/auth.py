@@ -15,13 +15,38 @@ from ..utils.exceptions import AuthenticationError
 auth_service = None
 user_service = None
 
+def get_auth_service():
+    """Get or create auth service instance"""
+    global auth_service
+    if auth_service is None:
+        try:
+            auth_service = AuthService()
+            print("Auth service initialized successfully")
+        except Exception as e:
+            print(f"Failed to initialize auth service: {e}")
+            raise
+    return auth_service
+
+def get_user_service():
+    """Get or create user service instance"""
+    global user_service
+    if user_service is None:
+        try:
+            user_service = UserService()
+            print("User service initialized successfully")
+        except Exception as e:
+            print(f"Failed to initialize user service: {e}")
+            raise
+    return user_service
+
+# Initialize services immediately
 try:
     auth_service = AuthService()
     user_service = UserService()
+    print("Auth services initialized successfully on import")
 except Exception as e:
-    import logging
-    logging.error(f"Failed to initialize auth services: {e}")
-    # Services will be None, which will be handled in the middleware
+    print(f"Failed to initialize auth services on import: {e}")
+    # Services will be lazily initialized
 
 
 def setup_auth_middleware(app):
@@ -45,22 +70,30 @@ def setup_auth_middleware(app):
             return
         
         try:
-            # Check if services are available
-            if auth_service is None or user_service is None:
-                current_app.logger.error("Auth services not initialized")
+            # Get services (lazy initialization if needed)
+            try:
+                auth_svc = get_auth_service()
+                user_svc = get_user_service()
+            except Exception as e:
+                current_app.logger.error(f"Failed to get auth services: {e}")
                 return
                 
             token = auth_header.split(' ')[1]
+            current_app.logger.info(f"Verifying token: {token[:20]}...")
             
             # Verify session token
-            user_id = auth_service.verify_session(token)
+            user_id = auth_svc.verify_session(token)
+            current_app.logger.info(f"Token verification result: user_id={user_id}")
             if not user_id:
+                current_app.logger.warning("Token verification failed - no user_id")
                 return
             
             # Get user data
-            user = user_service.get_user_by_id(user_id)
+            user = user_svc.get_user_by_id(user_id)
+            current_app.logger.info(f"User lookup result: {user.name if user else 'None'}")
             if user and user.is_active:
                 g.current_user = user
+                current_app.logger.info(f"User authenticated successfully: {user.name}")
                     
         except AuthenticationError:
             # Expected auth failures - don't log as errors

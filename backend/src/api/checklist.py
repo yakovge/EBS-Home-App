@@ -237,28 +237,42 @@ def upload_checklist_photo(current_user):
     Expects multipart form data with 'photo' file, 'photo_type', and optional 'checklist_id'.
     Returns the photo URL for use in checklist photo addition.
     """
+    current_app.logger.info("=== CHECKLIST PHOTO UPLOAD START ===")
+    current_app.logger.info(f"User: {current_user.id} ({current_user.name})")
+    current_app.logger.info(f"Request files: {list(request.files.keys())}")
+    current_app.logger.info(f"Request form data: {dict(request.form)}")
+    
     try:
         # Check if photo file is present
         if 'photo' not in request.files:
+            current_app.logger.error("No photo file in request")
             return jsonify({'error': 'No photo file provided'}), 400
         
         photo_file = request.files['photo']
+        current_app.logger.info(f"Photo file details: filename={photo_file.filename}, content_type={photo_file.content_type}")
+        
         if photo_file.filename == '':
+            current_app.logger.error("Empty filename provided")
             return jsonify({'error': 'No photo file selected'}), 400
         
         # Get photo_type from form data
         photo_type = request.form.get('photo_type')
+        current_app.logger.info(f"Photo type: {photo_type}")
         if not photo_type:
+            current_app.logger.error("No photo_type provided")
             return jsonify({'error': 'photo_type is required'}), 400
         
         # Validate photo_type
-        allowed_types = {'refrigerator', 'freezer', 'closet'}
+        allowed_types = {'refrigerator', 'freezer', 'closet', 'general'}
         if photo_type not in allowed_types:
+            current_app.logger.error(f"Invalid photo_type: {photo_type}")
             return jsonify({'error': f'Invalid photo_type. Must be one of: {", ".join(allowed_types)}'}), 400
         
         # Validate file type and size
         allowed_file_types = {'image/jpeg', 'image/jpg', 'image/png', 'image/webp'}
+        current_app.logger.info(f"Validating file type: {photo_file.content_type}")
         if photo_file.content_type not in allowed_file_types:
+            current_app.logger.error(f"Invalid file type: {photo_file.content_type}")
             return jsonify({'error': 'Invalid file type. Only JPEG, PNG, and WebP are allowed'}), 400
         
         # Check file size (max 5MB)
@@ -266,18 +280,24 @@ def upload_checklist_photo(current_user):
         photo_file.seek(0, 2)  # Seek to end
         file_size = photo_file.tell()
         photo_file.seek(0)  # Reset to beginning
+        current_app.logger.info(f"File size: {file_size} bytes ({file_size / 1024 / 1024:.2f} MB)")
         
         if file_size > max_size:
+            current_app.logger.error(f"File too large: {file_size} bytes > {max_size} bytes")
             return jsonify({'error': 'File size too large. Maximum 5MB allowed'}), 400
         
         # Read file bytes
+        current_app.logger.info("Reading file bytes...")
         file_bytes = photo_file.read()
         filename = photo_file.filename
+        current_app.logger.info(f"File bytes read: {len(file_bytes)} bytes")
         
         # Get checklist_id from form data (optional for pre-creation uploads)
         checklist_id = request.form.get('checklist_id', 'temp')
+        current_app.logger.info(f"Using checklist_id: {checklist_id}")
         
         # Upload photo to Firebase Storage
+        current_app.logger.info("Uploading to Firebase Storage...")
         photo_url = storage_service.upload_checklist_photo(
             user_id=current_user.id,
             checklist_id=checklist_id,
@@ -285,9 +305,18 @@ def upload_checklist_photo(current_user):
             file_bytes=file_bytes,
             filename=filename
         )
+        current_app.logger.info(f"Firebase upload result: {photo_url}")
         
         if not photo_url:
-            return jsonify({'error': 'Failed to upload photo'}), 500
+            current_app.logger.error("Firebase Storage upload returned None")
+            return jsonify({
+                'error': 'Failed to upload photo to storage', 
+                'message': 'Firebase Storage bucket may not exist. Please check server logs for setup instructions.',
+                'help': 'If you are a developer, check the backend console for Firebase Storage setup instructions.'
+            }), 500
+        
+        current_app.logger.info("=== CHECKLIST PHOTO UPLOAD SUCCESS ===")
+        current_app.logger.info(f"Photo URL: {photo_url}")
         
         return jsonify({
             'photo_url': photo_url,
@@ -297,6 +326,68 @@ def upload_checklist_photo(current_user):
         
     except Exception as e:
         import traceback
-        current_app.logger.error(f"Upload checklist photo error: {str(e)}")
+        current_app.logger.error("=== CHECKLIST PHOTO UPLOAD FAILED ===")
+        current_app.logger.error(f"Error: {str(e)}")
         current_app.logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': 'Failed to upload photo', 'message': str(e)}), 500
+
+
+@checklist_bp.route('/upload-test', methods=['POST', 'GET'])
+@require_auth
+def test_upload_auth(current_user):
+    """Test endpoint to verify authentication works for uploads"""
+    current_app.logger.info(f"Upload auth test - User: {current_user.id} ({current_user.name})")
+    
+    return jsonify({
+        'message': 'Authentication working',
+        'user': {
+            'id': current_user.id,
+            'name': current_user.name,
+            'email': current_user.email
+        }
+    }), 200
+
+
+@checklist_bp.route('/test-firebase', methods=['POST'])
+def test_firebase_upload():
+    """Test endpoint to check Firebase Storage without auth (TEMPORARY)"""
+    current_app.logger.info("=== FIREBASE TEST START ===")
+    
+    try:
+        # Check if photo file is present
+        if 'photo' not in request.files:
+            return jsonify({'error': 'No photo file provided'}), 400
+        
+        photo_file = request.files['photo']
+        if photo_file.filename == '':
+            return jsonify({'error': 'No photo file selected'}), 400
+        
+        photo_type = request.form.get('photo_type', 'test')
+        current_app.logger.info(f"Test upload: {photo_file.filename}, type: {photo_type}")
+        
+        # Read file bytes
+        file_bytes = photo_file.read()
+        current_app.logger.info(f"File size: {len(file_bytes)} bytes")
+        
+        # Try Firebase upload
+        photo_url = storage_service.upload_checklist_photo(
+            user_id='test-user',
+            checklist_id='test-checklist',
+            photo_type=photo_type,
+            file_bytes=file_bytes,
+            filename=photo_file.filename
+        )
+        
+        if photo_url:
+            return jsonify({
+                'message': 'Firebase test successful',
+                'photo_url': photo_url
+            }), 200
+        else:
+            return jsonify({'error': 'Firebase upload failed'}), 500
+            
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"Firebase test error: {str(e)}")
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': 'Firebase test failed', 'message': str(e)}), 500

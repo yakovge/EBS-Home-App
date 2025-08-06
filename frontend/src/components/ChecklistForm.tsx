@@ -49,7 +49,7 @@ interface PhotoEntry {
 }
 
 interface ChecklistCategory {
-  type: 'refrigerator' | 'freezer' | 'closet'
+  type: 'refrigerator' | 'freezer' | 'closet' | 'general'
   title: string
   textNotes: string  // Required text notes for the category
   photos: PhotoEntry[]  // Optional photos
@@ -79,6 +79,12 @@ export default function ChecklistForm({ open, onClose, onSuccess, bookingId }: C
     {
       type: 'closet',
       title: 'Closets', 
+      textNotes: '',
+      photos: []
+    },
+    {
+      type: 'general',
+      title: 'General Notes',
       textNotes: '',
       photos: []
     }
@@ -142,19 +148,25 @@ export default function ChecklistForm({ open, onClose, onSuccess, bookingId }: C
   }
 
   const validateChecklist = (): boolean => {
-    // Check if all categories have text notes (primary requirement)
-    for (const category of categories) {
+    // Clear any previous errors
+    setError('')
+    
+    // Check if all REQUIRED categories have text notes (general is optional)
+    const requiredCategories = categories.filter(cat => cat.type !== 'general')
+    for (const category of requiredCategories) {
       if (!category.textNotes.trim() || category.textNotes.trim().length < 5) {
         setError(`${category.title} requires descriptive notes (at least 5 characters)`)
         return false
       }
-      
-      // Check if optional photos have notes
-      for (const photo of category.photos) {
-        if (!photo.notes.trim()) {
-          setError(`All photos must have descriptive notes. Missing notes in ${category.title}`)
-          return false
-        }
+    }
+    
+    // For all categories (including optional general), check photo notes
+    for (const category of categories) {
+      // Optional: Check if photos without notes should be removed or warned about
+      // For now, we allow photos without notes - photos are optional enhancements
+      const photosWithoutNotes = category.photos.filter(photo => !photo.notes.trim())
+      if (photosWithoutNotes.length > 0) {
+        console.warn(`${category.title} has ${photosWithoutNotes.length} photo(s) without notes. These will be submitted without descriptions.`)
       }
     }
     
@@ -186,6 +198,11 @@ export default function ChecklistForm({ open, onClose, onSuccess, bookingId }: C
 
       // Submit text entries for each category (primary requirement)
       for (const category of categories) {
+        // Skip empty general notes (they're optional)
+        if (category.type === 'general' && (!category.textNotes || category.textNotes.trim().length === 0)) {
+          continue
+        }
+        
         // Add the main text entry for the category
         await apiClient.post(`/checklists/${checklistId}/entries`, {
           photo_type: category.type,
@@ -199,40 +216,68 @@ export default function ChecklistForm({ open, onClose, onSuccess, bookingId }: C
       let uploadedCount = 0
 
       for (const category of categories) {
-        for (const photo of category.photos) {
-          // Upload photo
-          const photoUrl = await uploadService.uploadChecklistPhoto(
-            photo.file,
-            category.type,
-            (progress) => {
-              const overallProgress = totalPhotos > 0 ? Math.round(((uploadedCount + progress / 100) / totalPhotos) * 100) : 100
-              setUploadProgress(overallProgress)
+        for (const [photoIndex, photo] of category.photos.entries()) {
+          try {
+            // Upload photo
+            const photoUrl = await uploadService.uploadChecklistPhoto(
+              photo.file,
+              category.type,
+              (progress) => {
+                const overallProgress = totalPhotos > 0 ? Math.round(((uploadedCount + progress / 100) / totalPhotos) * 100) : 100
+                setUploadProgress(overallProgress)
+              }
+            )
+            
+            // Add photo entry to checklist (using new entries endpoint)
+            // Use photo notes if provided, or a default message
+            const photoNotes = photo.notes.trim() || `Photo of ${category.title.toLowerCase()}`
+            
+            await apiClient.post(`/checklists/${checklistId}/entries`, {
+              photo_type: category.type,
+              photo_url: photoUrl,
+              notes: photoNotes
+            })
+            
+            uploadedCount++
+          } catch (photoError) {
+            console.error(`Failed to process photo ${photoIndex + 1} for ${category.type}:`, photoError)
+            
+            // Check for specific error types to provide better user feedback
+            let errorMessage = `Failed to upload photo ${photoIndex + 1} for ${category.type}`
+            
+            if (photoError.message.includes('Authentication required') || 
+                photoError.message.includes('401')) {
+              errorMessage = 'Authentication failed. Please log in again and try uploading the photo.'
+            } else if (photoError.message.includes('Network')) {
+              errorMessage = 'Network error. Please check your connection and try again.'
+            } else if (photoError.message.includes('File size')) {
+              errorMessage = 'Photo file is too large. Please use a smaller image (under 5MB).'
+            } else if (photoError.message.includes('Invalid file type')) {
+              errorMessage = 'Invalid photo format. Please use JPEG, PNG, or WebP images.'
+            } else if (photoError.message.includes('Failed to upload photo to storage') ||
+                      photoError.message.includes('Firebase Storage bucket may not exist')) {
+              errorMessage = 'Cloud storage is not properly configured. Please contact support or try again later.'
+            } else {
+              errorMessage = `${errorMessage}: ${photoError.message}`
             }
-          )
-          
-          // Add photo entry to checklist (using new entries endpoint)
-          await apiClient.post(`/checklists/${checklistId}/entries`, {
-            photo_type: category.type,
-            photo_url: photoUrl,
-            notes: photo.notes
-          })
-          
-          uploadedCount++
+            
+            throw new Error(errorMessage)
+          }
         }
       }
 
       // Submit checklist
-      console.log('Submitting checklist:', checklistId)
-      const submitResponse = await apiClient.post(`/checklists/${checklistId}/submit`)
-      console.log('Submit response:', submitResponse)
+      await apiClient.post(`/checklists/${checklistId}/submit`)
 
       showSuccess('Exit checklist submitted successfully')
       onSuccess?.()
       handleClose()
     } catch (err: any) {
-      console.error('Failed to submit checklist:', err)
-      showError(err.response?.data?.message || 'Failed to submit checklist')
-      setError(err.response?.data?.message || 'Failed to submit checklist')
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to submit checklist'
+      console.error('Checklist submission failed:', errorMessage)
+      
+      showError(errorMessage)
+      setError(errorMessage)
     } finally {
       setLoading(false)
       setUploadProgress(0)
@@ -254,7 +299,8 @@ export default function ChecklistForm({ open, onClose, onSuccess, bookingId }: C
       setCategories([
         { type: 'refrigerator', title: 'Refrigerator', textNotes: '', photos: [] },
         { type: 'freezer', title: 'Freezer', textNotes: '', photos: [] },
-        { type: 'closet', title: 'Closets', textNotes: '', photos: [] }
+        { type: 'closet', title: 'Closets', textNotes: '', photos: [] },
+        { type: 'general', title: 'General Notes', textNotes: '', photos: [] }
       ])
       setError('')
       onClose()
@@ -262,17 +308,28 @@ export default function ChecklistForm({ open, onClose, onSuccess, bookingId }: C
   }
 
   const getCompletionStatus = () => {
+    // Required categories: refrigerator, freezer, closet (general is optional)
+    const requiredCategories = categories.filter(cat => cat.type !== 'general')
     const categoriesWithText = categories.filter(cat => cat.textNotes.trim().length >= 5).length
+    const requiredCategoriesWithText = requiredCategories.filter(cat => cat.textNotes.trim().length >= 5).length
+    
     const totalPhotos = categories.reduce((sum, cat) => sum + cat.photos.length, 0)
-    const hasAllPhotoNotes = categories.every(cat => 
-      cat.photos.every(photo => photo.notes.trim().length > 0)
+    const photosWithoutNotes = categories.reduce((sum, cat) => 
+      sum + cat.photos.filter(photo => !photo.notes.trim()).length, 0
     )
+    
+    // Checklist is complete when all REQUIRED categories have text notes
+    // General notes are optional, photos and photo notes are optional
+    const isComplete = requiredCategoriesWithText === requiredCategories.length
     
     return {
       categoriesWithText,
       totalCategories: categories.length,
+      requiredCategoriesWithText,
+      totalRequiredCategories: requiredCategories.length,
       totalPhotos,
-      isComplete: categoriesWithText === categories.length && hasAllPhotoNotes
+      photosWithoutNotes,
+      isComplete
     }
   }
 
@@ -285,7 +342,7 @@ export default function ChecklistForm({ open, onClose, onSuccess, bookingId }: C
           <Typography variant="h6">Exit Checklist</Typography>
           <Chip 
             icon={status.isComplete ? <CheckCircleIcon /> : <UncheckedIcon />}
-            label={`${status.categoriesWithText}/${status.totalCategories} required + ${status.totalPhotos} photos`}
+            label={`${status.requiredCategoriesWithText}/${status.totalRequiredCategories} required • ${status.categoriesWithText - status.requiredCategoriesWithText} optional • ${status.totalPhotos} photos${status.photosWithoutNotes > 0 ? ` (${status.photosWithoutNotes} no notes)` : ''}`}
             color={status.isComplete ? 'success' : 'default'}
           />
         </Box>
@@ -294,7 +351,8 @@ export default function ChecklistForm({ open, onClose, onSuccess, bookingId }: C
       <DialogContent>
         <Box sx={{ mb: 2 }}>
           <Typography variant="body2" color="text.secondary">
-            Please provide notes for each category describing the current state. Photos are optional but helpful.
+            Please provide notes for refrigerator, freezer, and closets describing the current state. 
+            General notes are optional. Photos are optional but helpful.
           </Typography>
         </Box>
 
@@ -315,7 +373,7 @@ export default function ChecklistForm({ open, onClose, onSuccess, bookingId }: C
 
         <Grid container spacing={3}>
           {categories.map((category, categoryIndex) => (
-            <Grid item xs={12} md={4} key={category.type}>
+            <Grid item xs={12} md={6} key={category.type}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -324,8 +382,12 @@ export default function ChecklistForm({ open, onClose, onSuccess, bookingId }: C
                     </Typography>
                     <Chip 
                       icon={category.textNotes.trim().length >= 5 ? <CheckCircleIcon /> : <TextFieldsIcon />}
-                      label={category.textNotes.trim().length >= 5 ? 'Complete' : 'Required'}
-                      color={category.textNotes.trim().length >= 5 ? 'success' : 'default'}
+                      label={
+                        category.type === 'general' 
+                          ? (category.textNotes.trim().length >= 5 ? 'Added' : 'Optional')
+                          : (category.textNotes.trim().length >= 5 ? 'Complete' : 'Required')
+                      }
+                      color={category.textNotes.trim().length >= 5 ? 'success' : (category.type === 'general' ? 'info' : 'default')}
                       size="small"
                     />
                   </Box>
@@ -333,15 +395,23 @@ export default function ChecklistForm({ open, onClose, onSuccess, bookingId }: C
                   {/* Required text notes */}
                   <TextField
                     fullWidth
-                    label="Notes (required)"
-                    placeholder={`Describe the current state of the ${category.title.toLowerCase()}...`}
+                    label={category.type === 'general' ? 'General Notes (optional)' : 'Notes (required)'}
+                    placeholder={
+                      category.type === 'general' 
+                        ? 'Add any additional notes about the house condition, observations, or special instructions...'
+                        : `Describe the current state of the ${category.title.toLowerCase()}...`
+                    }
                     value={category.textNotes}
                     onChange={(e) => handleTextNotesChange(categoryIndex, e.target.value)}
                     multiline
                     rows={3}
-                    required
+                    required={category.type !== 'general'}
                     sx={{ mb: 2 }}
-                    helperText={`${category.textNotes.length}/5 minimum characters`}
+                    helperText={
+                      category.type === 'general' 
+                        ? `Optional: ${category.textNotes.length} characters`
+                        : `${category.textNotes.length}/5 minimum characters`
+                    }
                   />
 
                   {/* Optional photos */}

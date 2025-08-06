@@ -14,6 +14,7 @@ class PhotoType(Enum):
     REFRIGERATOR = "refrigerator"
     FREEZER = "freezer"
     CLOSET = "closet"
+    GENERAL = "general"
 
 
 class ChecklistPhoto(BaseModel):
@@ -66,6 +67,10 @@ class ExitChecklist(BaseModel):
         PhotoType.REFRIGERATOR,
         PhotoType.FREEZER,
         PhotoType.CLOSET
+    ]
+    
+    OPTIONAL_CATEGORIES = [
+        PhotoType.GENERAL
     ]
     
     def __init__(self,
@@ -138,16 +143,24 @@ class ExitChecklist(BaseModel):
         categories_with_entries = set()
         
         for entry in self.photos:  # Now called "photos" but can be text-only entries
-            if not entry.notes or len(entry.notes.strip()) < 5:
-                raise ValueError(f"Notes must be at least 5 characters for {entry.photo_type.value}")
-            categories_with_entries.add(entry.photo_type)
+            # General notes can be shorter or empty (optional)
+            if entry.photo_type == PhotoType.GENERAL:
+                # General notes are optional - allow empty or short notes
+                if entry.notes and len(entry.notes.strip()) > 0:
+                    categories_with_entries.add(entry.photo_type)
+            else:
+                # Required categories need at least 5 characters
+                if not entry.notes or len(entry.notes.strip()) < 5:
+                    raise ValueError(f"Notes must be at least 5 characters for {entry.photo_type.value}")
+                categories_with_entries.add(entry.photo_type)
         
         # Check that all required categories have at least one entry (text or photo)
         for required_category in self.REQUIRED_CATEGORIES:
             if required_category not in categories_with_entries:
                 raise ValueError(
                     f"Missing required entry for {required_category.value}. "
-                    f"Please provide notes for each category: refrigerator, freezer, closets."
+                    f"Please provide notes for each required category: refrigerator, freezer, closets. "
+                    f"General notes are optional."
                 )
         
         return True

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Test</title>
+</head>
+<body>
+    <h1>Checklist Photo Upload Test</h1>
+    <form id="uploadForm">
+        <input type="file" id="photoFile" accept="image/*" required>
+        <select id="photoType" required>
+            <option value="">Select photo type</option>
+            <option value="refrigerator">Refrigerator</option>
+            <option value="freezer">Freezer</option>
+            <option value="closet">Closet</option>
+            <option value="general">General</option>
+        </select>
+        <button type="submit">Upload Photo</button>
+    </form>
+    
+    <div id="result"></div>
+    
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('photoFile');
+            const photoType = document.getElementById('photoType').value;
+            const resultDiv = document.getElementById('result');
+            
+            if (!fileInput.files[0] || !photoType) {
+                resultDiv.innerHTML = '<p style="color: red">Please select both file and photo type</p>';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('photo', fileInput.files[0]);
+            formData.append('photo_type', photoType);
+            
+            // Test with dummy token first
+            const token = 'test-token-123';
+            
+            try {
+                resultDiv.innerHTML = '<p>Uploading...</p>';
+                
+                const response = await fetch('http://localhost:5000/api/checklists/upload-photo', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+                
+                const responseText = await response.text();
+                console.log('Response text:', responseText);
+                
+                if (response.ok) {
+                    const data = JSON.parse(responseText);
+                    resultDiv.innerHTML = `<p style="color: green">Success! Photo URL: ${data.photo_url}</p>`;
+                } else {
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(responseText);
+                    } catch (e) {
+                        errorData = { message: responseText };
+                    }
+                    resultDiv.innerHTML = `<p style="color: red">Error ${response.status}: ${errorData.message || errorData.error || 'Unknown error'}</p>`;
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                resultDiv.innerHTML = `<p style="color: red">Network error: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>

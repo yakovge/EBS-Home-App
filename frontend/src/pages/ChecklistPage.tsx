@@ -33,7 +33,7 @@ import ChecklistForm from '@/components/ChecklistForm'
 import ChecklistDetailModal from '@/components/ChecklistDetailModal'
 
 interface ChecklistEntry {
-  photo_type: 'refrigerator' | 'freezer' | 'closet'
+  photo_type: 'refrigerator' | 'freezer' | 'closet' | 'general'
   notes: string
   photo_url?: string
   created_at: string
@@ -64,11 +64,17 @@ export default function ChecklistPage() {
   const fetchChecklists = async () => {
     try {
       setLoading(true)
+      console.log('Fetching checklists...')
       const data = await apiClient.get<ExitChecklist[]>('/checklists')
+      console.log('Checklists fetched successfully:', data?.length || 0, 'items')
+      if (data && data.length > 0) {
+        console.log('First checklist sample:', data[0])
+      }
       setChecklists(data)
       setError('')
     } catch (err: any) {
       console.error('Failed to fetch checklists:', err)
+      console.error('Error details:', err.response?.data || err.message)
       setError('Failed to load checklists')
       showError('Failed to load checklists')
     } finally {
@@ -93,6 +99,7 @@ export default function ChecklistPage() {
       case 'refrigerator': return 2
       case 'freezer': return 2
       case 'closet': return 3
+      case 'general': return 0  // General notes are optional
       default: return 0
     }
   }
@@ -194,6 +201,7 @@ export default function ChecklistPage() {
                               Refrigerator: {getPhotoCount(checklist, 'refrigerator')}/{getRequiredCount('refrigerator')} • 
                               Freezer: {getPhotoCount(checklist, 'freezer')}/{getRequiredCount('freezer')} • 
                               Closets: {getPhotoCount(checklist, 'closet')}/{getRequiredCount('closet')}
+                              {getPhotoCount(checklist, 'general') > 0 && ` • General: ${getPhotoCount(checklist, 'general')}`}
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ display: 'block' }} component="span">
                               Created: {formatDate(checklist.created_at)}

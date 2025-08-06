@@ -151,7 +151,7 @@ export default function MaintenancePage() {
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
               <CircularProgress />
             </Box>
-          ) : requests.length === 0 ? (
+          ) : !requests || requests.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
               No maintenance requests yet. Click "New Request" to report an issue.
             </Typography>
@@ -192,39 +192,39 @@ export default function MaintenancePage() {
                               </Box>
                             }
                             secondary={
-                              <span>
-                                <Typography variant="body2" color="text.secondary" component="span">
-                                  Location: {request.location} • By: {request.reporter_name}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ display: 'block' }} component="span">
-                                  Created: {formatDate(request.created_at)}
-                                </Typography>
-                                {request.photo_urls && request.photo_urls.length > 0 && (
-                                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                                    <ImageIcon fontSize="small" color="action" />
-                                    <Typography variant="body2" color="primary" component="span">
-                                      {request.photo_urls.length} photo{request.photo_urls.length > 1 ? 's' : ''}
-                                    </Typography>
-                                  </span>
-                                )}
-                              </span>
+                              `Location: ${request.location} • By: ${request.reporter_name} • Created: ${formatDate(request.created_at)}${request.photo_urls && request.photo_urls.length > 0 ? ` • ${request.photo_urls.length} photo${request.photo_urls.length > 1 ? 's' : ''}` : ''}`
                             }
                           />
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {request.photo_urls && request.photo_urls.length > 0 && (
-                              <Tooltip title="View Photos">
+                            {request.photo_urls && request.photo_urls.length > 0 ? (
+                              <Tooltip title={`View ${request.photo_urls.length} Photo${request.photo_urls.length > 1 ? 's' : ''}`}>
                                 <Button
                                   size="small"
                                   startIcon={<ImageIcon />}
                                   onClick={() => {
+                                    console.log('Opening photo modal for request:', request.id, 'with photos:', request.photo_urls)
                                     setSelectedRequest(request)
                                     setShowPhotoModal(true)
                                   }}
                                   color="primary"
                                   variant="outlined"
                                 >
-                                  Photos
+                                  {request.photo_urls.length} Photo{request.photo_urls.length > 1 ? 's' : ''}
                                 </Button>
+                              </Tooltip>
+                            ) : (
+                              <Tooltip title="No photos were uploaded for this request">
+                                <span>
+                                  <Button
+                                    size="small"
+                                    startIcon={<ImageIcon />}
+                                    disabled
+                                    variant="outlined"
+                                    sx={{ opacity: 0.5 }}
+                                  >
+                                    No Photos
+                                  </Button>
+                                </span>
                               </Tooltip>
                             )}
                             {request.status === 'pending' && (
@@ -280,44 +280,39 @@ export default function MaintenancePage() {
                               </Box>
                             }
                             secondary={
-                              <Box>
-                                <Typography variant="body2" color="text.secondary">
-                                  Location: {request.location} • By: {request.reporter_name}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  Created: {formatDate(request.created_at)}
-                                </Typography>
-                                {request.completed_by_name && (
-                                  <Typography variant="body2" color="success.main" sx={{ fontWeight: 'medium' }}>
-                                    Fixed by {request.completed_by_name} on {request.resolution_date ? formatDate(request.resolution_date) : 'N/A'}
-                                  </Typography>
-                                )}
-                                {request.photo_urls && request.photo_urls.length > 0 && (
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                                    <ImageIcon fontSize="small" color="action" />
-                                    <Typography variant="body2" color="primary">
-                                      {request.photo_urls.length} photo{request.photo_urls.length > 1 ? 's' : ''}
-                                    </Typography>
-                                  </Box>
-                                )}
-                              </Box>
+                              `Location: ${request.location} • By: ${request.reporter_name} • Created: ${formatDate(request.created_at)}${request.completed_by_name ? ` • Fixed by ${request.completed_by_name} on ${request.resolution_date ? formatDate(request.resolution_date) : 'N/A'}` : ''}${request.photo_urls && request.photo_urls.length > 0 ? ` • ${request.photo_urls.length} photo${request.photo_urls.length > 1 ? 's' : ''}` : ''}`
                             }
                           />
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {request.photo_urls && request.photo_urls.length > 0 && (
-                              <Tooltip title="View Photos">
+                            {request.photo_urls && request.photo_urls.length > 0 ? (
+                              <Tooltip title={`View ${request.photo_urls.length} Photo${request.photo_urls.length > 1 ? 's' : ''}`}>
                                 <Button
                                   size="small"
                                   startIcon={<ImageIcon />}
                                   onClick={() => {
+                                    console.log('Opening photo modal for completed request:', request.id, 'with photos:', request.photo_urls)
                                     setSelectedRequest(request)
                                     setShowPhotoModal(true)
                                   }}
                                   color="primary"
                                   variant="outlined"
                                 >
-                                  Photos
+                                  {request.photo_urls.length} Photo{request.photo_urls.length > 1 ? 's' : ''}
                                 </Button>
+                              </Tooltip>
+                            ) : (
+                              <Tooltip title="No photos were uploaded for this request">
+                                <span>
+                                  <Button
+                                    size="small"
+                                    startIcon={<ImageIcon />}
+                                    disabled
+                                    variant="outlined"
+                                    sx={{ opacity: 0.5 }}
+                                  >
+                                    No Photos
+                                  </Button>
+                                </span>
                               </Tooltip>
                             )}
                             <Tooltip title="Mark as Unfixed">

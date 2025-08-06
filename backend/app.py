@@ -4,7 +4,7 @@ This file initializes and configures the Flask application.
 """
 
 import os
-from flask import Flask, request
+from flask import Flask, request, send_from_directory
 from dotenv import load_dotenv
 
 from src.api import auth_bp, maintenance_bp, booking_bp, checklist_bp, user_bp, dashboard_bp
@@ -83,6 +83,13 @@ def create_app():
     def test_endpoint():
         print("=== TEST ENDPOINT REACHED ===")
         return {'message': 'Test endpoint working', 'method': request.method}, 200
+    
+    # Serve uploaded files from local storage (fallback when Firebase Storage is unavailable)
+    @app.route('/api/uploads/<path:filepath>')
+    def serve_upload(filepath):
+        """Serve locally stored uploads when Firebase Storage is unavailable"""
+        uploads_dir = os.path.join(os.path.dirname(__file__), 'uploads')
+        return send_from_directory(uploads_dir, filepath)
     
     return app
 
