@@ -166,9 +166,9 @@ export default function MaintenancePage() {
                       🔧 Pending Requests
                     </Typography>
                     <List sx={{ mb: 4 }}>
-                      {pendingRequests.map((request) => (
+                      {pendingRequests.map((request, index) => (
                         <ListItem
-                          key={request.id}
+                          key={request.id || `pending-${index}`}
                           sx={{
                             border: 1,
                             borderColor: 'warning.light',
@@ -192,22 +192,22 @@ export default function MaintenancePage() {
                               </Box>
                             }
                             secondary={
-                              <Box>
-                                <Typography variant="body2" color="text.secondary">
+                              <span>
+                                <Typography variant="body2" color="text.secondary" component="span">
                                   Location: {request.location} • By: {request.reporter_name}
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary">
+                                <Typography variant="body2" color="text.secondary" sx={{ display: 'block' }} component="span">
                                   Created: {formatDate(request.created_at)}
                                 </Typography>
                                 {request.photo_urls && request.photo_urls.length > 0 && (
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
                                     <ImageIcon fontSize="small" color="action" />
-                                    <Typography variant="body2" color="primary">
+                                    <Typography variant="body2" color="primary" component="span">
                                       {request.photo_urls.length} photo{request.photo_urls.length > 1 ? 's' : ''}
                                     </Typography>
-                                  </Box>
+                                  </span>
                                 )}
-                              </Box>
+                              </span>
                             }
                           />
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -254,9 +254,9 @@ export default function MaintenancePage() {
                       📋 Fixed History
                     </Typography>
                     <List>
-                      {completedRequests.map((request) => (
+                      {completedRequests.map((request, index) => (
                         <ListItem
-                          key={request.id}
+                          key={request.id || `completed-${index}`}
                           sx={{
                             border: 1,
                             borderColor: 'success.light',

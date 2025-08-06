@@ -163,9 +163,9 @@ export default function ChecklistPage() {
                 </Typography>
               ) : (
                 <List>
-                  {checklists.map((checklist) => (
+                  {checklists.map((checklist, index) => (
                     <ListItem
-                      key={checklist.id}
+                      key={checklist.id || `checklist-${index}`}
                       sx={{
                         border: 1,
                         borderColor: 'divider',
@@ -189,22 +189,22 @@ export default function ChecklistPage() {
                           </Box>
                         }
                         secondary={
-                          <Box>
-                            <Typography variant="body2" color="text.secondary">
+                          <span>
+                            <Typography variant="body2" color="text.secondary" component="span">
                               Refrigerator: {getPhotoCount(checklist, 'refrigerator')}/{getRequiredCount('refrigerator')} • 
                               Freezer: {getPhotoCount(checklist, 'freezer')}/{getRequiredCount('freezer')} • 
                               Closets: {getPhotoCount(checklist, 'closet')}/{getRequiredCount('closet')}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="text.secondary" sx={{ display: 'block' }} component="span">
                               Created: {formatDate(checklist.created_at)}
                               {checklist.submitted_at && ` • Submitted: ${formatDate(checklist.submitted_at)}`}
                             </Typography>
                             {checklist.important_notes && (
-                              <Typography variant="body2" color="warning.main" sx={{ mt: 0.5 }}>
+                              <Typography variant="body2" color="warning.main" sx={{ mt: 0.5, display: 'block' }} component="span">
                                 ⚠️ Has important notes
                               </Typography>
                             )}
-                          </Box>
+                          </span>
                         }
                       />
                       <Tooltip title="View Details">

@@ -272,9 +272,9 @@ export default function BookingPage() {
                   </Typography>
                 ) : (
                   <List>
-                    {getUpcomingBookings().map((booking) => (
+                    {getUpcomingBookings().map((booking, index) => (
                       <ListItem
-                        key={booking.id}
+                        key={booking.id || `booking-${index}`}
                         sx={{
                           border: 1,
                           borderColor: 'divider',
@@ -297,12 +297,12 @@ export default function BookingPage() {
                             </Box>
                           }
                           secondary={
-                            <Box>
+                            <span>
                               <Typography variant="body2" color="text.secondary" component="span">
                                 {formatDate(booking.start_date)} - {formatDate(booking.end_date)}
                               </Typography>
                               {booking.notes && (
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }} component="span">
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, display: 'block' }} component="span">
                                   {booking.notes}
                                 </Typography>
                               )}
@@ -311,10 +311,10 @@ export default function BookingPage() {
                                   label="Exit checklist completed" 
                                   size="small" 
                                   color="success" 
-                                  sx={{ mt: 1 }}
+                                  sx={{ mt: 1, display: 'block' }}
                                 />
                               )}
-                              <Box sx={{ mt: 1 }}>
+                              <span style={{ display: 'block', marginTop: '8px' }}>
                                 <Button
                                   size="small"
                                   startIcon={<CancelIcon />}
@@ -324,8 +324,8 @@ export default function BookingPage() {
                                 >
                                   Cancel
                                 </Button>
-                              </Box>
-                            </Box>
+                              </span>
+                            </span>
                           }
                         />
                       </ListItem>

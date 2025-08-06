@@ -202,8 +202,8 @@ describe('ChecklistPage', () => {
       renderWithProviders()
 
       await waitFor(() => {
-        expect(screen.getAllByText('Test User')).toHaveLength(2) // Two checklists by Test User
-        expect(screen.getByText('Other User')).toBeInTheDocument()
+        expect(screen.getAllByText('Checklist by Test User')).toHaveLength(2) // Two checklists by Test User
+        expect(screen.getByText('Checklist by Other User')).toBeInTheDocument()
       })
 
       // Verify completion status display
@@ -234,7 +234,7 @@ describe('ChecklistPage', () => {
       renderWithProviders()
 
       await waitFor(() => {
-        expect(screen.getByText(/No checklists found/)).toBeInTheDocument()
+        expect(screen.getByText(/No checklists submitted yet/)).toBeInTheDocument()
       })
     })
   })
@@ -305,7 +305,7 @@ describe('ChecklistPage', () => {
       await waitFor(() => {
         // Should render without crashing
         expect(screen.getByText('Exit Checklists')).toBeInTheDocument()
-        expect(screen.getByText('Test User')).toBeInTheDocument()
+        expect(screen.getByText('Checklist by Test User')).toBeInTheDocument()
       })
     })
 
@@ -343,7 +343,7 @@ describe('ChecklistPage', () => {
       renderWithProviders()
 
       await waitFor(() => {
-        expect(screen.getByText('Test User')).toBeInTheDocument()
+        expect(screen.getByText('Checklist by Test User')).toBeInTheDocument()
       })
 
       // Find and click view details button
@@ -358,7 +358,7 @@ describe('ChecklistPage', () => {
 
         await waitFor(() => {
           expect(screen.getByTestId('checklist-detail-modal')).toBeInTheDocument()
-          expect(screen.getByTestId('modal-user-name')).toHaveTextContent('Test User')
+          expect(screen.getByTestId('modal-user-name')).toHaveTextContent('Checklist by Test User')
           expect(screen.getByTestId('modal-photos-count')).toHaveTextContent('3 photos')
         })
       }
@@ -368,7 +368,7 @@ describe('ChecklistPage', () => {
       renderWithProviders()
 
       await waitFor(() => {
-        expect(screen.getByText('Test User')).toBeInTheDocument()
+        expect(screen.getByText('Checklist by Test User')).toBeInTheDocument()
       })
 
       // Open modal
@@ -397,7 +397,7 @@ describe('ChecklistPage', () => {
       renderWithProviders()
 
       await waitFor(() => {
-        expect(screen.getAllByText('Test User')).toHaveLength(2)
+        expect(screen.getAllByText('Checklist by Test User')).toHaveLength(2)
       })
 
       // Find the empty checklist (should be the second Test User entry)
@@ -484,7 +484,7 @@ describe('ChecklistPage', () => {
       renderWithProviders()
 
       await waitFor(() => {
-        expect(screen.getByText('Test User')).toBeInTheDocument()
+        expect(screen.getByText('Checklist by Test User')).toBeInTheDocument()
       })
 
       // Open modal to check entry grouping
@@ -597,7 +597,7 @@ describe('ChecklistPage', () => {
 
       await waitFor(() => {
         // Should show some indication of photo count or status
-        expect(screen.getByText('Test User')).toBeInTheDocument()
+        expect(screen.getByText('Checklist by Test User')).toBeInTheDocument()
       })
 
       // The exact display might vary, but we should see completion status
