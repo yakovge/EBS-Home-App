@@ -93,3 +93,73 @@ Object.defineProperty(window.navigator, 'platform', {
   value: 'Win32',
   writable: true,
 })
+
+// Mock localStorage
+const localStorageMock = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+}
+global.localStorage = localStorageMock as any
+
+// Mock sessionStorage
+const sessionStorageMock = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+}
+global.sessionStorage = sessionStorageMock as any
+
+// Mock URL methods for file handling
+global.URL.createObjectURL = vi.fn(() => 'mock-url')
+global.URL.revokeObjectURL = vi.fn()
+
+// Mock IntersectionObserver
+global.IntersectionObserver = class IntersectionObserver {
+  constructor() {}
+  disconnect() {}
+  observe() {}
+  unobserve() {}
+}
+
+// Mock ResizeObserver
+global.ResizeObserver = class ResizeObserver {
+  constructor() {}
+  disconnect() {}
+  observe() {}
+  unobserve() {}
+}
+
+// Clean up after each test
+afterEach(() => {
+  vi.clearAllMocks()
+  localStorageMock.getItem.mockClear()
+  localStorageMock.setItem.mockClear()
+  localStorageMock.removeItem.mockClear()
+  localStorageMock.clear.mockClear()
+  sessionStorageMock.getItem.mockClear()
+  sessionStorageMock.setItem.mockClear()
+  sessionStorageMock.removeItem.mockClear()
+  sessionStorageMock.clear.mockClear()
+})
+
+// Export test utilities
+export const createMockApiResponse = <T>(data: T, status = 200) => ({
+  data,
+  status,
+  statusText: 'OK',
+  headers: {},
+  config: {},
+})
+
+export const createMockApiError = (message: string, status = 500) => ({
+  response: {
+    data: { message },
+    status,
+    statusText: 'Error',
+  },
+  message,
+  isAxiosError: true,
+})

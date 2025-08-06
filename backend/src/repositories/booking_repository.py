@@ -140,29 +140,45 @@ class BookingRepository(BaseRepository):
         Get bookings that conflict with the given date range.
         
         Args:
-            start_date: Start date of the booking
-            end_date: End date of the booking
+            start_date: Start date of the booking (YYYY-MM-DD format)
+            end_date: End date of the booking (YYYY-MM-DD format)  
             exclude_booking_id: Optional booking ID to exclude from conflict check
             
         Returns:
             List[Booking]: List of conflicting bookings
         """
+        # Convert string dates to date objects for comparison
+        try:
+            start_date_obj = date.fromisoformat(start_date)
+            end_date_obj = date.fromisoformat(end_date)
+        except ValueError as e:
+            print(f"Error: Invalid date format in conflict check: {e}")
+            return []
+        
         query = self.collection.where('is_cancelled', '==', False)
         
-        if exclude_booking_id:
-            query = query.where('id', '!=', exclude_booking_id)
-        
-        # Get bookings that overlap with the given date range
+        # Get all non-cancelled bookings
         docs = query.stream()
         conflicting_bookings = []
         
         for doc in docs:
             booking_data = doc.to_dict()
             booking_data['id'] = doc.id
-            booking = Booking.from_dict(booking_data)
             
-            # Check for date overlap
-            if (booking.start_date <= end_date and booking.end_date >= start_date):
-                conflicting_bookings.append(booking)
+            # Skip excluded booking
+            if exclude_booking_id and doc.id == exclude_booking_id:
+                continue
+                
+            try:
+                booking = Booking.from_dict(booking_data)
+                
+                # Check for date overlap using date objects
+                # Two bookings conflict if: start1 < end2 AND start2 < end1
+                if (start_date_obj < booking.end_date and booking.start_date < end_date_obj):
+                    conflicting_bookings.append(booking)
+                    
+            except Exception as e:
+                print(f"Error: Failed to process booking {doc.id}: {e}")
+                continue
         
         return conflicting_bookings 

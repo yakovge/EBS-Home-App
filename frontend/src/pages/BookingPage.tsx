@@ -21,7 +21,8 @@ import {
 } from '@mui/material'
 import { 
   Event as EventIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
+  Home as HomeIcon
 } from '@mui/icons-material'
 import { apiClient } from '@/services/api'
 import { useNotification } from '@/contexts/NotificationContext'
@@ -89,9 +90,10 @@ export default function BookingPage() {
 
   const handleCancelBooking = async (bookingId: string) => {
     try {
-      await apiClient.put(`/bookings/${bookingId}`, { is_cancelled: true })
+      // Use the correct cancel endpoint
+      await apiClient.post(`/bookings/${bookingId}/cancel`)
       showSuccess('Booking cancelled successfully')
-      fetchBookings() // Refresh bookings
+      await fetchBookings() // Refresh bookings
     } catch (err: any) {
       console.error('Failed to cancel booking:', err)
       showError(err.response?.data?.message || 'Failed to cancel booking')
@@ -104,9 +106,35 @@ export default function BookingPage() {
 
   const getUpcomingBookings = () => {
     const today = new Date()
-    return bookings.filter(booking => 
-      !booking.is_cancelled && new Date(booking.start_date) >= today
-    ).slice(0, 5)
+    today.setHours(0, 0, 0, 0) // Reset to start of day for accurate comparison
+    
+    return bookings.filter(booking => {
+      if (booking.is_cancelled) return false
+      
+      const startDate = new Date(booking.start_date + 'T00:00:00') // Ensure proper date parsing
+      return startDate >= today
+    }).sort((a, b) => {
+      // Sort by start date ascending
+      return new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+    }).slice(0, 5)
+  }
+
+  const getCurrentOccupants = () => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    return bookings.filter(booking => {
+      if (booking.is_cancelled) return false
+      
+      const startDate = new Date(booking.start_date + 'T00:00:00')
+      const endDate = new Date(booking.end_date + 'T23:59:59')
+      
+      // Check if today falls within the booking dates
+      return today >= startDate && today <= endDate
+    }).sort((a, b) => {
+      // Sort by start date ascending
+      return new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+    })
   }
 
   const getBookingStatus = (booking: Booking) => {
@@ -169,8 +197,68 @@ export default function BookingPage() {
             </Card>
           </Grid>
 
-          {/* Upcoming Bookings Sidebar */}
+          {/* Sidebar */}
           <Grid item xs={12} lg={4}>
+            {/* Currently in BS Home */}
+            <Card sx={{ mb: 2 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                  <HomeIcon sx={{ mr: 1 }} />
+                  Currently in BS Home
+                </Typography>
+
+                {getCurrentOccupants().length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                    No one is currently staying at the house.
+                  </Typography>
+                ) : (
+                  <List>
+                    {getCurrentOccupants().map((booking) => (
+                      <ListItem
+                        key={booking.id}
+                        sx={{
+                          border: 1,
+                          borderColor: 'success.light',
+                          borderRadius: 1,
+                          mb: 1,
+                          p: 2,
+                          backgroundColor: 'success.50'
+                        }}
+                      >
+                        <ListItemText
+                          primary={
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Typography variant="subtitle2">
+                                {booking.user_name}
+                              </Typography>
+                              <Chip
+                                label="Active"
+                                size="small"
+                                color="success"
+                              />
+                            </Box>
+                          }
+                          secondary={
+                            <Box>
+                              <Typography variant="body2" color="text.secondary">
+                                {formatDate(booking.start_date)} - {formatDate(booking.end_date)}
+                              </Typography>
+                              {booking.notes && (
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                  {booking.notes}
+                                </Typography>
+                              )}
+                            </Box>
+                          }
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Upcoming Bookings */}
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
@@ -254,15 +342,21 @@ export default function BookingPage() {
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="body2">Total Bookings:</Typography>
-                    <Typography variant="body2" fontWeight="bold">
-                      {bookings.filter(b => !b.is_cancelled).length}
+                    <Typography variant="body2">Currently at House:</Typography>
+                    <Typography variant="body2" fontWeight="bold" color="success.main">
+                      {getCurrentOccupants().length}
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Typography variant="body2">Upcoming:</Typography>
                     <Typography variant="body2" fontWeight="bold">
                       {getUpcomingBookings().length}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2">Total Bookings:</Typography>
+                    <Typography variant="body2" fontWeight="bold">
+                      {bookings.filter(b => !b.is_cancelled).length}
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>

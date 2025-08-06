@@ -40,7 +40,10 @@ class ApiClient {
         if (error.response?.status === 401) {
           // Unauthorized - clear token and redirect to login
           localStorage.removeItem('session_token')
-          window.location.href = '/login'
+          // Only redirect if not already on login page
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login'
+          }
         }
         return Promise.reject(error)
       }

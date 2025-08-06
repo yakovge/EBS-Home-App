@@ -21,7 +21,15 @@
       "Bash(npm run typecheck:*)",
       "Bash(npm run lint)",
       "Bash(npm install:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npm run test:ci:*)",
+      "Bash(npx vitest run:*)",
+      "Bash(npm start)",
+      "Bash(npm run:*)",
+      "Bash(del \"C:\\Users\\user\\Projects\\DeepSearch\\backend\\tests\\integration\\test_checklist_flow.py\")",
+      "Bash(del srctestspagesBookingPage.test.tsx)",
+      "Bash(del srctestspagesMaintenancePage.test.tsx)",
+      "Bash(del srctestspagesChecklistPage.test.tsx)"
     ],
     "deny": []
   }

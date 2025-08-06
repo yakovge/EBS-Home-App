@@ -132,7 +132,9 @@ def complete_maintenance_request(current_user, request_id):
         
         success = maintenance_service.complete_maintenance_request(
             request_id=request_id,
-            resolution_notes=data['resolution_notes']
+            resolution_notes=data['resolution_notes'],
+            completed_by_id=current_user.id,
+            completed_by_name=current_user.name
         )
         
         if not success:
@@ -154,6 +156,44 @@ def complete_maintenance_request(current_user, request_id):
     except Exception as e:
         current_app.logger.error(f"Complete maintenance request error: {str(e)}")
         return jsonify({'error': 'Failed to complete request', 'message': str(e)}), 500
+
+
+@maintenance_bp.route('/<request_id>/reopen', methods=['POST'])
+@require_auth
+def reopen_maintenance_request(current_user, request_id):
+    """
+    Reopen (mark as unfixed) a completed maintenance request.
+    Expects: { reopen_reason }
+    """
+    try:
+        data = validate_request_data(request.json, {
+            'reopen_reason': {'type': str, 'required': True, 'min_length': 5}
+        })
+        
+        success = maintenance_service.reopen_maintenance_request(
+            request_id=request_id,
+            reopen_reason=data['reopen_reason'],
+            reopened_by_id=current_user.id,
+            reopened_by_name=current_user.name
+        )
+        
+        if not success:
+            return jsonify({'error': 'Failed to reopen request'}), 400
+            
+        maintenance_request = maintenance_service.get_maintenance_request_by_id(request_id)
+        
+        return jsonify({
+            'message': 'Request reopened successfully',
+            'request': maintenance_request.to_dict()
+        }), 200
+        
+    except (ValueError, ValidationError) as e:
+        return jsonify({'error': 'Validation error', 'message': str(e)}), 400
+    except ResourceNotFoundError:
+        return jsonify({'error': 'Request not found'}), 404
+    except Exception as e:
+        current_app.logger.error(f"Reopen maintenance request error: {str(e)}")
+        return jsonify({'error': 'Failed to reopen request', 'message': str(e)}), 500
 
 
 @maintenance_bp.route('/upload-photo', methods=['POST'])

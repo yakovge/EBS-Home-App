@@ -33,17 +33,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const checkExistingSession = async () => {
     try {
       const token = localStorage.getItem('session_token')
-      if (token) {
-        const response = await authService.verifySession(token)
-        if (response.valid && response.user) {
-          setUser(response.user)
-        } else {
-          localStorage.removeItem('session_token')
-        }
+      if (!token) {
+        setLoading(false)
+        return
       }
-    } catch (error) {
+
+      const response = await authService.verifySession(token)
+      if (response.valid && response.user) {
+        setUser(response.user)
+      } else {
+        // Invalid session, clear token
+        localStorage.removeItem('session_token')
+        setUser(null)
+      }
+    } catch (error: any) {
       console.error('Session verification failed:', error)
+      // Clear invalid token
       localStorage.removeItem('session_token')
+      setUser(null)
+      
+      // Only show error if it's not a 401 (expected for expired tokens)
+      if (error.response?.status !== 401) {
+        console.error('Unexpected session verification error:', error)
+      }
     } finally {
       setLoading(false)
     }
@@ -58,10 +70,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(response.user)
         localStorage.setItem('session_token', response.session_token)
       } else {
-        throw new Error('Invalid login response')
+        throw new Error('Invalid login response: missing user or session token')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login failed:', error)
+      // Clear any stale data
+      setUser(null)
+      localStorage.removeItem('session_token')
       throw error
     } finally {
       setLoading(false)
@@ -82,14 +97,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const refreshUser = async () => {
     try {
       const token = localStorage.getItem('session_token')
-      if (token) {
-        const response = await authService.verifySession(token)
-        if (response.valid && response.user) {
-          setUser(response.user)
-        }
+      if (!token) {
+        setUser(null)
+        return
       }
-    } catch (error) {
+
+      const response = await authService.verifySession(token)
+      if (response.valid && response.user) {
+        setUser(response.user)
+      } else {
+        // Session no longer valid
+        setUser(null)
+        localStorage.removeItem('session_token')
+      }
+    } catch (error: any) {
       console.error('Failed to refresh user:', error)
+      // On refresh failure, clear user and token
+      setUser(null)
+      localStorage.removeItem('session_token')
     }
   }
 

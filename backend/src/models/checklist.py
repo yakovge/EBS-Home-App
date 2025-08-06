@@ -80,15 +80,18 @@ class ExitChecklist(BaseModel):
         self.photos: List[ChecklistPhoto] = []
         self.is_complete = False
         self.submitted_at: Optional[datetime] = None
+        self.important_notes: Optional[str] = None
     
     def to_dict(self) -> Dict[str, Any]:
         return {
+            'id': self.id,
             'user_id': self.user_id,
             'user_name': self.user_name,
             'booking_id': self.booking_id,
             'photos': [photo.to_dict() for photo in self.photos],
             'is_complete': self.is_complete,
             'submitted_at': self.submitted_at,
+            'important_notes': self.important_notes,
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }
@@ -108,6 +111,7 @@ class ExitChecklist(BaseModel):
         ]
         checklist.is_complete = data.get('is_complete', False)
         checklist.submitted_at = data.get('submitted_at')
+        checklist.important_notes = data.get('important_notes')
         checklist.created_at = data.get('created_at', datetime.utcnow())
         checklist.updated_at = data.get('updated_at', datetime.utcnow())
         

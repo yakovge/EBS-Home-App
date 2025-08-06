@@ -240,3 +240,71 @@ class TestChecklistService:
         
         # Verify booking repository was not called
         self.service.booking_repository.get_booking_by_id.assert_not_called()
+    
+    def test_checklist_data_structure_consistency(self):
+        """Test that checklist data structure is consistent from backend to frontend."""
+        # Create a realistic checklist with mixed entries
+        checklist = ExitChecklist(
+            user_id='test-user',
+            user_name='Test User', 
+            booking_id='booking-123',
+            id='checklist-456'
+        )
+        
+        # Add text-only entry
+        text_entry = ChecklistPhoto(PhotoType.REFRIGERATOR, 'Refrigerator is clean and empty')
+        checklist.add_photo(text_entry)
+        
+        # Add photo entry
+        photo_entry = ChecklistPhoto(
+            PhotoType.FREEZER, 
+            'Freezer contents documented',
+            'https://storage.firebase.com/freezer_photo.jpg'
+        )
+        checklist.add_photo(photo_entry)
+        
+        # Add another entry for same category
+        another_entry = ChecklistPhoto(PhotoType.REFRIGERATOR, 'Additional refrigerator notes')
+        checklist.add_photo(another_entry)
+        
+        # Convert to dict (what API returns)
+        checklist_data = checklist.to_dict()
+        
+        # Verify structure
+        assert 'photos' in checklist_data
+        assert len(checklist_data['photos']) == 3
+        
+        # Simulate frontend grouping logic
+        entries_by_type = {}
+        for entry in checklist_data['photos']:
+            photo_type = entry['photo_type']
+            if photo_type not in entries_by_type:
+                entries_by_type[photo_type] = []
+            entries_by_type[photo_type].append(entry)
+        
+        # Verify grouping works correctly
+        assert 'refrigerator' in entries_by_type
+        assert 'freezer' in entries_by_type
+        assert len(entries_by_type['refrigerator']) == 2
+        assert len(entries_by_type['freezer']) == 1
+        
+        # Test the specific condition that causes "No entries" issue
+        for entry_type in ['refrigerator', 'freezer', 'closet']:
+            has_entries = entry_type in entries_by_type and len(entries_by_type[entry_type]) > 0
+            
+            # This mimics the frontend condition: entriesByType[type] && entriesByType[type].length > 0
+            if entry_type in ['refrigerator', 'freezer']:
+                assert has_entries, f"Should have entries for {entry_type}"
+                assert entries_by_type[entry_type], f"Array should not be falsy for {entry_type}"
+            else:
+                assert not has_entries, f"Should not have entries for {entry_type}"
+        
+        # Verify data integrity for each entry
+        fridge_entries = entries_by_type['refrigerator']
+        assert fridge_entries[0]['notes'] == 'Refrigerator is clean and empty'
+        assert fridge_entries[0]['photo_url'] is None
+        assert fridge_entries[1]['notes'] == 'Additional refrigerator notes'
+        
+        freezer_entry = entries_by_type['freezer'][0]
+        assert freezer_entry['notes'] == 'Freezer contents documented'
+        assert freezer_entry['photo_url'] == 'https://storage.firebase.com/freezer_photo.jpg'

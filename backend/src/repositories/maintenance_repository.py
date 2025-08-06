@@ -112,13 +112,16 @@ class MaintenanceRepository(BaseRepository):
         }
         return self.update(request_id, update_data)
     
-    def complete_maintenance_request(self, request_id: str, resolution_notes: str) -> bool:
+    def complete_maintenance_request(self, request_id: str, resolution_notes: str, 
+                                   completed_by_id: str, completed_by_name: str) -> bool:
         """
         Mark a maintenance request as completed.
         
         Args:
             request_id: ID of the maintenance request
             resolution_notes: Notes about the resolution
+            completed_by_id: ID of the user who marked it as complete
+            completed_by_name: Name of the user who marked it as complete
             
         Returns:
             bool: True if completed successfully
@@ -127,6 +130,37 @@ class MaintenanceRepository(BaseRepository):
             'status': 'completed',
             'resolution_notes': resolution_notes,
             'resolution_date': datetime.utcnow(),
+            'completed_by_id': completed_by_id,
+            'completed_by_name': completed_by_name,
             'updated_at': datetime.utcnow()
+        }
+        return self.update(request_id, update_data)
+    
+    def reopen_maintenance_request(self, request_id: str, reopen_reason: str, 
+                                 reopened_by_id: str, reopened_by_name: str) -> bool:
+        """
+        Reopen a completed maintenance request.
+        
+        Args:
+            request_id: ID of the maintenance request
+            reopen_reason: Reason for reopening
+            reopened_by_id: ID of the user who reopened it
+            reopened_by_name: Name of the user who reopened it
+            
+        Returns:
+            bool: True if reopened successfully
+        """
+        update_data = {
+            'status': 'pending',
+            'reopen_reason': reopen_reason,
+            'reopened_by_id': reopened_by_id,
+            'reopened_by_name': reopened_by_name,
+            'reopened_date': datetime.utcnow(),
+            'updated_at': datetime.utcnow(),
+            # Clear completion data but keep history
+            'resolution_date': None,
+            'resolution_notes': None,
+            'completed_by_id': None,
+            'completed_by_name': None
         }
         return self.update(request_id, update_data) 

@@ -18,39 +18,48 @@ import {
   CircularProgress,
   Alert,
   Grid,
+  IconButton,
+  Tooltip,
 } from '@mui/material'
 import { 
   PhotoCamera as PhotoCameraIcon,
   CheckCircle as CheckCircleIcon,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material'
 import { apiClient } from '@/services/api'
 import { useNotification } from '@/contexts/NotificationContext'
 import ChecklistForm from '@/components/ChecklistForm'
+import ChecklistDetailModal from '@/components/ChecklistDetailModal'
+
+interface ChecklistEntry {
+  photo_type: 'refrigerator' | 'freezer' | 'closet'
+  notes: string
+  photo_url?: string
+  created_at: string
+}
 
 interface ExitChecklist {
   id: string
   user_name: string
-  booking_id: string
-  photos: Array<{
-    photo_type: string
-    photo_url: string
-    notes: string
-    created_at: string
-  }>
+  booking_id?: string
+  photos: ChecklistEntry[]
   is_complete: boolean
   created_at: string
   submitted_at?: string
+  important_notes?: string
 }
 
 export default function ChecklistPage() {
   const { t } = useTranslation()
-  const { showError } = useNotification()
+  const { showError, showSuccess } = useNotification()
   
   const [loading, setLoading] = useState(true)
   const [checklists, setChecklists] = useState<ExitChecklist[]>([])
   const [showForm, setShowForm] = useState(false)
   const [error, setError] = useState('')
+  const [selectedChecklist, setSelectedChecklist] = useState<ExitChecklist | null>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
 
   const fetchChecklists = async () => {
     try {
@@ -76,7 +85,7 @@ export default function ChecklistPage() {
   }
 
   const getPhotoCount = (checklist: ExitChecklist, photoType: string) => {
-    return checklist.photos.filter(photo => photo.photo_type === photoType).length
+    return (checklist.photos || []).filter(photo => photo.photo_type === photoType).length
   }
 
   const getRequiredCount = (photoType: string) => {
@@ -162,6 +171,7 @@ export default function ChecklistPage() {
                         borderColor: 'divider',
                         borderRadius: 1,
                         mb: 1,
+                        pr: 2,
                       }}
                     >
                       <ListItemText
@@ -189,9 +199,25 @@ export default function ChecklistPage() {
                               Created: {formatDate(checklist.created_at)}
                               {checklist.submitted_at && ` • Submitted: ${formatDate(checklist.submitted_at)}`}
                             </Typography>
+                            {checklist.important_notes && (
+                              <Typography variant="body2" color="warning.main" sx={{ mt: 0.5 }}>
+                                ⚠️ Has important notes
+                              </Typography>
+                            )}
                           </Box>
                         }
                       />
+                      <Tooltip title="View Details">
+                        <IconButton
+                          onClick={() => {
+                            setSelectedChecklist(checklist)
+                            setShowDetailModal(true)
+                          }}
+                          color="primary"
+                        >
+                          <VisibilityIcon />
+                        </IconButton>
+                      </Tooltip>
                     </ListItem>
                   ))}
                 </List>
@@ -210,6 +236,30 @@ export default function ChecklistPage() {
           fetchChecklists()
         }}
         bookingId={undefined} // Allow standalone checklists
+      />
+
+      {/* Checklist Detail Modal */}
+      <ChecklistDetailModal
+        open={showDetailModal}
+        onClose={() => {
+          setShowDetailModal(false)
+          setSelectedChecklist(null)
+        }}
+        checklist={selectedChecklist}
+        onUpdateImportantNotes={async (notes) => {
+          if (!selectedChecklist) return
+          
+          try {
+            await apiClient.put(`/checklists/${selectedChecklist.id}/important-notes`, {
+              important_notes: notes
+            })
+            showSuccess('Important notes updated successfully')
+            fetchChecklists() // Refresh the list
+          } catch (err: any) {
+            console.error('Failed to update important notes:', err)
+            showError(err.response?.data?.message || 'Failed to update important notes')
+          }
+        }}
       />
     </Box>
   )

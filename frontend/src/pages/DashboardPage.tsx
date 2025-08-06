@@ -16,6 +16,7 @@ import {
   Button,
   Skeleton,
   Alert,
+  Chip,
 } from '@mui/material'
 import {
   Build as BuildIcon,
@@ -24,18 +25,43 @@ import {
   Add as AddIcon,
   CalendarToday as CalendarIcon,
   Assignment as AssignmentIcon,
+  Person as PersonIcon,
+  Home as HomeIcon,
+  Warning as WarningIcon,
+  PhotoLibrary as PhotoLibraryIcon,
 } from '@mui/icons-material'
 
 import { useAuth } from '@/hooks/useAuth'
 import { useNotification } from '@/contexts/NotificationContext'
 import { dashboardService } from '@/services/dashboardService'
 import { realtimeService } from '@/services/realtimeService'
+import { apiClient } from '@/services/api'
 import { MaintenanceRequest, Booking } from '@/types'
 
 interface DashboardStats {
   currentBookings: number
   pendingMaintenance: number
   exitChecklists: number
+}
+
+interface CurrentOccupant {
+  booking_id: string
+  user_name: string
+  start_date: string
+  end_date: string
+  notes?: string
+}
+
+interface RecentChecklist {
+  id: string
+  user_name: string
+  submitted_at: string
+  photos: Array<{
+    photo_type: string
+    notes: string
+    photo_url?: string
+  }>
+  important_notes?: string
 }
 
 export default function DashboardPage() {
@@ -53,6 +79,8 @@ export default function DashboardPage() {
   })
   const [recentMaintenance, setRecentMaintenance] = useState<MaintenanceRequest[]>([])
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([])
+  const [currentOccupants, setCurrentOccupants] = useState<CurrentOccupant[]>([])
+  const [recentChecklist, setRecentChecklist] = useState<RecentChecklist | null>(null)
 
   useEffect(() => {
     fetchDashboardData()
@@ -90,21 +118,87 @@ export default function DashboardPage() {
     }
   }, [user?.id])
 
+  const fetchCurrentOccupants = async (): Promise<CurrentOccupant[]> => {
+    try {
+      // Get bookings that are currently active (today is between start and end date)
+      const response = await apiClient.get<{bookings: Booking[], total: number}>('/bookings')
+      const bookings = response.bookings || []
+      
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      const currentOccupants: CurrentOccupant[] = []
+      
+      for (const booking of bookings) {
+        if (booking.is_cancelled) continue
+        
+        const startDate = new Date(booking.start_date + 'T00:00:00')
+        const endDate = new Date(booking.end_date + 'T23:59:59')
+        
+        // Check if today falls within the booking dates
+        if (today >= startDate && today <= endDate) {
+          currentOccupants.push({
+            booking_id: booking.id,
+            user_name: booking.user_name || 'Unknown User',
+            start_date: booking.start_date,
+            end_date: booking.end_date,
+            notes: booking.notes
+          })
+        }
+      }
+      return currentOccupants
+    } catch (err: any) {
+      console.error('Failed to fetch current occupants:', err)
+      return []
+    }
+  }
+
+  const fetchRecentChecklist = async (): Promise<RecentChecklist | null> => {
+    try {
+      const checklists = await apiClient.get<any[]>('/checklists')
+      
+      // Find the most recent completed checklist
+      const completedChecklists = checklists
+        .filter((checklist: any) => checklist.is_complete)
+        .sort((a: any, b: any) => new Date(b.submitted_at || b.created_at).getTime() - new Date(a.submitted_at || a.created_at).getTime())
+      
+      if (completedChecklists.length === 0) {
+        return null
+      }
+      
+      const latest = completedChecklists[0]
+      return {
+        id: latest.id,
+        user_name: latest.user_name,
+        submitted_at: latest.submitted_at || latest.created_at,
+        photos: latest.photos || [],
+        important_notes: latest.important_notes
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch recent checklist:', err)
+      return null
+    }
+  }
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
       setError('')
 
       // Fetch all dashboard data in parallel
-      const [statsData, maintenanceData, bookingsData] = await Promise.all([
+      const [statsData, maintenanceData, bookingsData, occupantsData, checklistData] = await Promise.all([
         dashboardService.getStats(),
         dashboardService.getRecentMaintenance(),
         dashboardService.getUpcomingBookings(),
+        fetchCurrentOccupants(),
+        fetchRecentChecklist(),
       ])
 
       setStats(statsData)
       setRecentMaintenance(maintenanceData)
       setUpcomingBookings(bookingsData)
+      setCurrentOccupants(occupantsData)
+      setRecentChecklist(checklistData)
     } catch (err: any) {
       console.error('Failed to fetch dashboard data:', err)
       const errorMessage = err.message || 'Failed to load dashboard data'
@@ -162,6 +256,63 @@ export default function DashboardPage() {
         <Typography variant="caption" color="text.secondary">
           {item.notes}
         </Typography>
+      )}
+    </Box>
+  )
+
+  const renderCurrentOccupant = (occupant: CurrentOccupant) => (
+    <Box key={occupant.booking_id} sx={{ mb: 2, p: 2, border: '1px solid #e3f2fd', borderRadius: 1, backgroundColor: '#f8fcff' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <PersonIcon sx={{ mr: 1, color: 'primary.main' }} />
+        <Typography variant="subtitle2">
+          {occupant.user_name}
+        </Typography>
+      </Box>
+      <Typography variant="body2" color="text.secondary" gutterBottom>
+        {new Date(occupant.start_date).toLocaleDateString()} - {new Date(occupant.end_date).toLocaleDateString()}
+      </Typography>
+      {occupant.notes && (
+        <Typography variant="caption" color="text.secondary">
+          {occupant.notes}
+        </Typography>
+      )}
+    </Box>
+  )
+
+  const renderRecentChecklist = (checklist: RecentChecklist) => (
+    <Box sx={{ p: 2, border: '1px solid #e8f5e8', borderRadius: 1, backgroundColor: '#f9fdf9' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <CheckCircleIcon sx={{ mr: 1, color: 'success.main' }} />
+        <Typography variant="subtitle2">
+          Last checklist by {checklist.user_name}
+        </Typography>
+      </Box>
+      <Typography variant="body2" color="text.secondary" gutterBottom>
+        Submitted: {new Date(checklist.submitted_at).toLocaleDateString()}
+      </Typography>
+      
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+        {['refrigerator', 'freezer', 'closet'].map(type => {
+          const count = checklist.photos.filter(p => p.photo_type === type).length
+          return (
+            <Chip
+              key={type}
+              size="small"
+              icon={<PhotoLibraryIcon />}
+              label={`${type}: ${count}`}
+              color={count > 0 ? 'success' : 'default'}
+            />
+          )
+        })}
+      </Box>
+      
+      {checklist.important_notes && (
+        <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, p: 1, backgroundColor: '#fff3cd', borderRadius: 1 }}>
+          <WarningIcon sx={{ mr: 1, color: 'warning.main', fontSize: 16 }} />
+          <Typography variant="caption" color="warning.dark">
+            Important notes: {checklist.important_notes}
+          </Typography>
+        </Box>
       )}
     </Box>
   )
@@ -277,6 +428,65 @@ export default function DashboardPage() {
             >
               Book Stay
             </Button>
+          </Grid>
+        </Grid>
+      </Box>
+
+      {/* House Status */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+          <HomeIcon sx={{ mr: 1 }} />
+          House Status
+        </Typography>
+        <Grid container spacing={3}>
+          {/* Current Occupants */}
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Currently in BS Home
+                </Typography>
+                <Box sx={{ mt: 2 }}>
+                  {currentOccupants.length > 0 ? (
+                    currentOccupants.map(renderCurrentOccupant)
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No one is currently staying at the house
+                    </Typography>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Recent Checklist */}
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Most Recent Exit Checklist
+                </Typography>
+                <Box sx={{ mt: 2 }}>
+                  {recentChecklist ? (
+                    renderRecentChecklist(recentChecklist)
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No exit checklists submitted yet
+                    </Typography>
+                  )}
+                </Box>
+              </CardContent>
+              {recentChecklist && (
+                <CardActions>
+                  <Button 
+                    size="small" 
+                    onClick={() => navigate('/checklist')}
+                  >
+                    View All Checklists
+                  </Button>
+                </CardActions>
+              )}
+            </Card>
           </Grid>
         </Grid>
       </Box>

@@ -193,6 +193,42 @@ def submit_checklist(current_user, checklist_id):
         return jsonify({'error': 'Failed to submit checklist', 'message': str(e)}), 500
 
 
+@checklist_bp.route('/<checklist_id>/important-notes', methods=['PUT'])
+@require_auth
+def update_important_notes(current_user, checklist_id):
+    """
+    Update important notes for a checklist.
+    Expects: { important_notes }
+    """
+    try:
+        data = validate_request_data(request.json, {
+            'important_notes': {'type': str, 'required': True}
+        })
+        
+        # Update important notes
+        update_data = {
+            'important_notes': data['important_notes']
+        }
+        
+        success = checklist_service.update_checklist(checklist_id, update_data)
+        
+        if not success:
+            return jsonify({'error': 'Failed to update important notes'}), 400
+        
+        return jsonify({'message': 'Important notes updated successfully'}), 200
+        
+    except (ValueError, ValidationError) as e:
+        current_app.logger.warning(f"Update important notes validation error: {str(e)}")
+        return jsonify({'error': 'Validation error', 'message': str(e)}), 400
+    except ResourceNotFoundError:
+        return jsonify({'error': 'Checklist not found'}), 404
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"Update important notes unexpected error: {str(e)}")
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': 'Failed to update important notes', 'message': str(e)}), 500
+
+
 @checklist_bp.route('/upload-photo', methods=['POST'])
 @require_auth
 def upload_checklist_photo(current_user):

@@ -111,16 +111,50 @@ def logout(current_user):
 
 
 @auth_bp.route('/verify', methods=['GET'])
-@require_auth
-def verify_session(current_user):
+def verify_session():
     """
     Verify current session is valid.
     Returns current user data if session is valid.
+    This endpoint does NOT use @require_auth to avoid circular dependency.
     """
-    return jsonify({
-        'valid': True,
-        'user': current_user.to_dict()
-    }), 200
+    try:
+        # Extract token from Authorization header
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({
+                'valid': False,
+                'error': 'No valid authorization header'
+            }), 401
+        
+        token = auth_header.split(' ')[1]
+        
+        # Verify session token directly (not through middleware)
+        user_id = auth_service.verify_session(token)
+        if not user_id:
+            return jsonify({
+                'valid': False,
+                'error': 'Invalid session token'
+            }), 401
+        
+        # Get user data
+        user = user_service.get_user_by_id(user_id)
+        if not user or not user.is_active:
+            return jsonify({
+                'valid': False,
+                'error': 'User not found or inactive'
+            }), 401
+        
+        return jsonify({
+            'valid': True,
+            'user': user.to_dict()
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Session verification error: {str(e)}")
+        return jsonify({
+            'valid': False,
+            'error': 'Session verification failed'
+        }), 401
 
 
 @auth_bp.route('/refresh', methods=['POST'])

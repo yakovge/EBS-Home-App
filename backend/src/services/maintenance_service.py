@@ -147,18 +147,47 @@ class MaintenanceService:
             assigned_user.name
         )
     
-    def complete_maintenance_request(self, request_id: str, resolution_notes: str) -> bool:
+    def complete_maintenance_request(self, request_id: str, resolution_notes: str, 
+                                   completed_by_id: str, completed_by_name: str) -> bool:
         """
         Mark a maintenance request as completed.
         
         Args:
             request_id: ID of the maintenance request
             resolution_notes: Notes about the resolution
+            completed_by_id: ID of the user who marked it as complete
+            completed_by_name: Name of the user who marked it as complete
             
         Returns:
             bool: True if completed successfully
         """
-        return self.maintenance_repository.complete_maintenance_request(request_id, resolution_notes)
+        return self.maintenance_repository.complete_maintenance_request(
+            request_id, 
+            resolution_notes,
+            completed_by_id,
+            completed_by_name
+        )
+    
+    def reopen_maintenance_request(self, request_id: str, reopen_reason: str, 
+                                 reopened_by_id: str, reopened_by_name: str) -> bool:
+        """
+        Reopen a completed maintenance request (mark as unfixed).
+        
+        Args:
+            request_id: ID of the maintenance request
+            reopen_reason: Reason for reopening
+            reopened_by_id: ID of the user who reopened it
+            reopened_by_name: Name of the user who reopened it
+            
+        Returns:
+            bool: True if reopened successfully
+        """
+        return self.maintenance_repository.reopen_maintenance_request(
+            request_id, 
+            reopen_reason,
+            reopened_by_id,
+            reopened_by_name
+        )
     
     def update_maintenance_request(self, request_id: str, update_data: Dict[str, Any]) -> bool:
         """

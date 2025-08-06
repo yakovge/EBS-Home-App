@@ -67,6 +67,11 @@ def create_booking(current_user):
     Create new booking.
     Expects: { start_date, end_date, notes? }
     """
+    # Debug user authentication
+    if not current_user:
+        current_app.logger.error("CREATE_BOOKING: current_user is None")
+        return jsonify({'error': 'Authentication required', 'message': 'No authenticated user found'}), 401
+    
     try:
         data = validate_request_data(request.json, {
             'start_date': {'type': str, 'required': True},
@@ -181,6 +186,11 @@ def update_booking(current_user, booking_id):
 @require_auth
 def cancel_booking(current_user, booking_id):
     """Cancel booking (only by booking owner)."""
+    # Debug user authentication
+    if not current_user:
+        current_app.logger.error("CANCEL_BOOKING: current_user is None")
+        return jsonify({'error': 'Authentication required', 'message': 'No authenticated user found'}), 401
+    
     try:
         booking = booking_service.get_booking_by_id(booking_id)
         
@@ -189,6 +199,9 @@ def cancel_booking(current_user, booking_id):
             return jsonify({'error': 'Permission denied', 'message': 'You can only cancel your own bookings'}), 403
         
         cancelled_booking = booking_service.cancel_booking(booking_id)
+        
+        if not cancelled_booking:
+            return jsonify({'error': 'Failed to cancel booking'}), 400
         
         return jsonify({
             'message': 'Booking cancelled successfully',
@@ -214,6 +227,9 @@ def delete_booking(current_user, booking_id):
             return jsonify({'error': 'Permission denied', 'message': 'You can only delete your own bookings'}), 403
         
         cancelled_booking = booking_service.cancel_booking(booking_id)
+        
+        if not cancelled_booking:
+            return jsonify({'error': 'Failed to cancel booking'}), 400
         
         return jsonify({
             'message': 'Booking cancelled successfully'

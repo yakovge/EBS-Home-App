@@ -11,6 +11,7 @@ from src.services.booking_service import BookingService
 from src.models.user import User
 from src.models.maintenance import MaintenanceRequest, MaintenanceStatus
 from src.models.booking import Booking
+from src.utils.exceptions import ConflictError
 
 
 class TestMaintenanceService:
@@ -203,7 +204,7 @@ class TestBookingService:
         self.service.booking_repository.get_conflicting_bookings.return_value = [conflicting_booking]
         
         # Execute & Verify
-        with pytest.raises(ValueError, match="Booking conflicts with existing bookings: Other User \\(2025-12-14 - 2025-12-18\\)"):
+        with pytest.raises(ConflictError, match="Booking conflicts with existing bookings: Other User \\(2025-12-14 - 2025-12-18\\)"):
             self.service.create_booking(
                 user_id='user-123',
                 start_date='2025-12-15',
@@ -248,11 +249,10 @@ class TestBookingService:
         # Setup mocks
         mock_user = User('test@example.com', 'Test User', 'family_member', 'en', 'user-123')
         self.service.user_repository.get_by_id.return_value = mock_user
-        self.service.booking_repository.get_conflicting_bookings.return_value = []
-        self.service.booking_repository.create_booking.side_effect = Exception("Database error")
+        self.service.booking_repository.get_conflicting_bookings.side_effect = Exception("Database error")
         
         # Execute & Verify
-        with pytest.raises(Exception, match="Failed to create booking"):
+        with pytest.raises(Exception, match="Failed to check booking availability"):
             self.service.create_booking(
                 user_id='user-123',
                 start_date='2025-12-15',

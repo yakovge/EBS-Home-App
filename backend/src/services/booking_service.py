@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, date
 from ..models.booking import Booking
 from ..repositories.booking_repository import BookingRepository
 from ..repositories.user_repository import UserRepository
+from ..utils.exceptions import ConflictError
 
 
 class BookingService:
@@ -74,13 +75,17 @@ class BookingService:
         
         # Check for conflicts
         try:
-            conflicts = self.booking_repository.get_conflicting_bookings(start_date, end_date)
+            # Convert date objects to strings for the repository method
+            conflicts = self.booking_repository.get_conflicting_bookings(
+                start_date_obj.isoformat(), 
+                end_date_obj.isoformat()
+            )
             if conflicts:
                 conflict_details = []
                 for conflict in conflicts:
                     conflict_details.append(f"{conflict.user_name} ({conflict.start_date} - {conflict.end_date})")
-                raise ValueError(f"Booking conflicts with existing bookings: {', '.join(conflict_details)}")
-        except ValueError:
+                raise ConflictError(f"Booking conflicts with existing bookings: {', '.join(conflict_details)}")
+        except (ValueError, ConflictError):
             raise  # Re-raise validation errors
         except Exception as e:
             print(f"Error: Failed to check booking conflicts: {str(e)}")
@@ -141,7 +146,7 @@ class BookingService:
         """
         return self.booking_repository.update_booking(booking_id, update_data)
     
-    def cancel_booking(self, booking_id: str) -> bool:
+    def cancel_booking(self, booking_id: str) -> Optional[Booking]:
         """
         Cancel a booking.
         
@@ -149,9 +154,12 @@ class BookingService:
             booking_id: ID of the booking to cancel
             
         Returns:
-            bool: True if cancelled successfully
+            Optional[Booking]: The cancelled booking if successful, None otherwise
         """
-        return self.booking_repository.cancel_booking(booking_id)
+        success = self.booking_repository.cancel_booking(booking_id)
+        if success:
+            return self.booking_repository.get_booking_by_id(booking_id)
+        return None
     
     def mark_exit_checklist_completed(self, booking_id: str, checklist_id: str) -> bool:
         """

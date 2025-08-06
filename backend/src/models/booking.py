@@ -36,6 +36,7 @@ class Booking(BaseModel):
     
     def to_dict(self) -> Dict[str, Any]:
         return {
+            'id': self.id,
             'user_id': self.user_id,
             'user_name': self.user_name,
             'start_date': self.start_date.isoformat(),
