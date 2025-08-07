@@ -1,25 +1,33 @@
 /**
  * Maintenance form screen for creating new maintenance requests.
- * Placeholder implementation - will be fully implemented in Phase 4.
+ * Uses the MaintenanceForm component with navigation integration.
  */
 
 import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, StyleSheet } from 'react-native'
+import { useNavigation } from '@react-navigation/native'
 import { useTheme } from '../contexts/ThemeContext'
-import { useTranslation } from 'react-i18next'
+import MaintenanceForm from '../components/MaintenanceForm'
 
 export default function MaintenanceFormScreen() {
   const { theme } = useTheme()
-  const { t } = useTranslation()
+  const navigation = useNavigation()
+
+  const handleSuccess = () => {
+    // Navigate back to the maintenance list
+    navigation.goBack()
+  }
+
+  const handleCancel = () => {
+    navigation.goBack()
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.title, { color: theme.colors.onBackground }]}>
-        {t('maintenance.createRequest')}
-      </Text>
-      <Text style={[styles.subtitle, { color: theme.colors.onBackground }]}>
-        Placeholder - Phase 4 Implementation
-      </Text>
+      <MaintenanceForm
+        onSuccess={handleSuccess}
+        onCancel={handleCancel}
+      />
     </View>
   )
 }
@@ -27,17 +35,5 @@ export default function MaintenanceFormScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
   },
 })

@@ -1,48 +1,30 @@
 /**
  * Login screen for user authentication.
- * Placeholder implementation - will be fully implemented in Phase 4.
+ * Uses the LoginForm component for token-based authentication.
  */
 
 import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
-import { Button } from 'react-native-paper'
+import { View, StyleSheet, StatusBar } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '../contexts/ThemeContext'
-import { useTranslation } from 'react-i18next'
+import LoginForm from '../components/Auth/LoginForm'
 
 export default function LoginScreen() {
-  const { theme } = useTheme()
-  const { t } = useTranslation()
+  const { theme, isDark } = useTheme()
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.title, { color: theme.colors.onBackground }]}>
-        {t('auth.login')}
-      </Text>
-      <Text style={[styles.subtitle, { color: theme.colors.onBackground }]}>
-        Placeholder - Phase 4 Implementation
-      </Text>
-      <Button mode="contained" onPress={() => {}}>
-        {t('auth.loginWithGoogle')}
-      </Button>
-    </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <StatusBar 
+        barStyle={isDark ? 'light-content' : 'dark-content'} 
+        backgroundColor={theme.colors.background}
+      />
+      <LoginForm />
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    marginBottom: 32,
-    textAlign: 'center',
   },
 })
