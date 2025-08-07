@@ -38,7 +38,7 @@ export default function RootNavigator() {
   return (
     <NavigationContainer
       theme={{
-        dark: theme.dark,
+        dark: theme.dark || false,
         colors: {
           primary: theme.colors.primary,
           background: theme.colors.background,
@@ -46,6 +46,24 @@ export default function RootNavigator() {
           text: theme.colors.onSurface,
           border: theme.colors.outline,
           notification: theme.colors.error,
+        },
+        fonts: {
+          regular: {
+            fontFamily: 'System',
+            fontWeight: 'normal',
+          },
+          medium: {
+            fontFamily: 'System',
+            fontWeight: '500',
+          },
+          bold: {
+            fontFamily: 'System',
+            fontWeight: 'bold',
+          },
+          heavy: {
+            fontFamily: 'System',
+            fontWeight: '900',
+          },
         },
       }}
     >

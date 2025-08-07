@@ -83,7 +83,8 @@ class UploadService {
       console.log('Photo uploaded successfully:', result.photo_url);
       return result.photo_url;
     } catch (error) {
-      console.error('Checklist photo upload failed:', error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error('Checklist photo upload failed:', errorMessage);
       throw error;
     }
   }

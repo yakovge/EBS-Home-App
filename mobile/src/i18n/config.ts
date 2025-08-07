@@ -54,22 +54,24 @@ const languageDetector = {
   },
 }
 
+const initOptions = {
+  resources,
+  fallbackLng: 'en',
+  debug: __DEV__, // Enable debug in development
+  interpolation: {
+    escapeValue: false, // React Native already escapes values
+  },
+  react: {
+    useSuspense: false,
+  },
+  // React Native specific options
+  compatibilityJSON: 'v4' as const,
+}
+
 i18n
   .use(languageDetector as any)
   .use(initReactI18next)
-  .init({
-    resources,
-    fallbackLng: 'en',
-    debug: __DEV__, // Enable debug in development
-    interpolation: {
-      escapeValue: false, // React Native already escapes values
-    },
-    react: {
-      useSuspense: false,
-    },
-    // React Native specific options
-    compatibilityJSON: 'v3',
-  })
+  .init(initOptions)
 
 export default i18n
 

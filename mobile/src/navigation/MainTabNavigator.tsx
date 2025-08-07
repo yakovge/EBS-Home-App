@@ -9,7 +9,14 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { useTheme } from '../contexts/ThemeContext'
-import { MainTabParamList, RootStackParamList } from '../types'
+import { 
+  MainTabParamList, 
+  DashboardStackParamList,
+  MaintenanceStackParamList,
+  ChecklistStackParamList,
+  BookingStackParamList,
+  ProfileStackParamList
+} from '../types'
 
 // Import screens (will be created in Phase 4)
 import DashboardScreen from '../screens/DashboardScreen'
@@ -23,15 +30,19 @@ import BookingScreen from '../screens/BookingScreen'
 import ProfileScreen from '../screens/ProfileScreen'
 
 const Tab = createBottomTabNavigator<MainTabParamList>()
-const Stack = createNativeStackNavigator<RootStackParamList>()
+const DashboardStack = createNativeStackNavigator<DashboardStackParamList>()
+const MaintenanceStackNav = createNativeStackNavigator<MaintenanceStackParamList>()
+const ChecklistStackNav = createNativeStackNavigator<ChecklistStackParamList>()
+const BookingStackNav = createNativeStackNavigator<BookingStackParamList>()
+const ProfileStackNav = createNativeStackNavigator<ProfileStackParamList>()
 
 // Dashboard Stack
-function DashboardStack() {
+function DashboardStackScreen() {
   const { theme } = useTheme()
   const { t } = useTranslation()
   
   return (
-    <Stack.Navigator
+    <DashboardStack.Navigator
       screenOptions={{
         headerStyle: {
           backgroundColor: theme.colors.surface,
@@ -42,22 +53,22 @@ function DashboardStack() {
         },
       }}
     >
-      <Stack.Screen
+      <DashboardStack.Screen
         name="Dashboard"
         component={DashboardScreen}
         options={{ title: t('dashboard.title') }}
       />
-    </Stack.Navigator>
+    </DashboardStack.Navigator>
   )
 }
 
 // Maintenance Stack
-function MaintenanceStack() {
+function MaintenanceStackScreen() {
   const { theme } = useTheme()
   const { t } = useTranslation()
   
   return (
-    <Stack.Navigator
+    <MaintenanceStackNav.Navigator
       screenOptions={{
         headerStyle: {
           backgroundColor: theme.colors.surface,
@@ -68,32 +79,32 @@ function MaintenanceStack() {
         },
       }}
     >
-      <Stack.Screen
+      <MaintenanceStackNav.Screen
         name="Maintenance"
         component={MaintenanceScreen}
         options={{ title: t('maintenance.title') }}
       />
-      <Stack.Screen
+      <MaintenanceStackNav.Screen
         name="MaintenanceForm"
         component={MaintenanceFormScreen}
         options={{ title: t('maintenance.createRequest') }}
       />
-      <Stack.Screen
+      <MaintenanceStackNav.Screen
         name="MaintenanceDetail"
         component={MaintenanceDetailScreen}
         options={{ title: t('maintenance.title') }}
       />
-    </Stack.Navigator>
+    </MaintenanceStackNav.Navigator>
   )
 }
 
 // Checklist Stack
-function ChecklistStack() {
+function ChecklistStackScreen() {
   const { theme } = useTheme()
   const { t } = useTranslation()
   
   return (
-    <Stack.Navigator
+    <ChecklistStackNav.Navigator
       screenOptions={{
         headerStyle: {
           backgroundColor: theme.colors.surface,
@@ -104,32 +115,32 @@ function ChecklistStack() {
         },
       }}
     >
-      <Stack.Screen
+      <ChecklistStackNav.Screen
         name="Checklist"
         component={ChecklistScreen}
         options={{ title: t('checklist.title') }}
       />
-      <Stack.Screen
+      <ChecklistStackNav.Screen
         name="ChecklistForm"
         component={ChecklistFormScreen}
         options={{ title: t('checklist.submitChecklist') }}
       />
-      <Stack.Screen
+      <ChecklistStackNav.Screen
         name="ChecklistDetail"
         component={ChecklistDetailScreen}
         options={{ title: t('checklist.title') }}
       />
-    </Stack.Navigator>
+    </ChecklistStackNav.Navigator>
   )
 }
 
 // Booking Stack
-function BookingStack() {
+function BookingStackScreen() {
   const { theme } = useTheme()
   const { t } = useTranslation()
   
   return (
-    <Stack.Navigator
+    <BookingStackNav.Navigator
       screenOptions={{
         headerStyle: {
           backgroundColor: theme.colors.surface,
@@ -140,22 +151,22 @@ function BookingStack() {
         },
       }}
     >
-      <Stack.Screen
+      <BookingStackNav.Screen
         name="Booking"
         component={BookingScreen}
         options={{ title: t('booking.title') }}
       />
-    </Stack.Navigator>
+    </BookingStackNav.Navigator>
   )
 }
 
 // Profile Stack
-function ProfileStack() {
+function ProfileStackScreen() {
   const { theme } = useTheme()
   const { t } = useTranslation()
   
   return (
-    <Stack.Navigator
+    <ProfileStackNav.Navigator
       screenOptions={{
         headerStyle: {
           backgroundColor: theme.colors.surface,
@@ -166,12 +177,12 @@ function ProfileStack() {
         },
       }}
     >
-      <Stack.Screen
+      <ProfileStackNav.Screen
         name="Profile"
         component={ProfileScreen}
         options={{ title: t('profile.title') }}
       />
-    </Stack.Navigator>
+    </ProfileStackNav.Navigator>
   )
 }
 
@@ -219,35 +230,35 @@ export default function MainTabNavigator() {
     >
       <Tab.Screen
         name="Dashboard"
-        component={DashboardStack}
+        component={DashboardStackScreen}
         options={{
           tabBarLabel: t('navigation.dashboard'),
         }}
       />
       <Tab.Screen
         name="Maintenance"
-        component={MaintenanceStack}
+        component={MaintenanceStackScreen}
         options={{
           tabBarLabel: t('navigation.maintenance'),
         }}
       />
       <Tab.Screen
         name="Checklist"
-        component={ChecklistStack}
+        component={ChecklistStackScreen}
         options={{
           tabBarLabel: t('navigation.checklist'),
         }}
       />
       <Tab.Screen
         name="Booking"
-        component={BookingStack}
+        component={BookingStackScreen}
         options={{
           tabBarLabel: t('navigation.bookings'),
         }}
       />
       <Tab.Screen
         name="Profile"
-        component={ProfileStack}
+        component={ProfileStackScreen}
         options={{
           tabBarLabel: t('navigation.profile'),
         }}

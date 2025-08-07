@@ -135,7 +135,6 @@ export type RootStackParamList = {
   ChecklistForm: { bookingId?: string }
   MaintenanceDetail: { requestId: string }
   ChecklistDetail: { checklistId: string }
-  Profile: undefined
 }
 
 export type MainTabParamList = {
@@ -143,6 +142,30 @@ export type MainTabParamList = {
   Maintenance: undefined
   Checklist: undefined
   Booking: undefined
+  Profile: undefined
+}
+
+export type DashboardStackParamList = {
+  Dashboard: undefined
+}
+
+export type MaintenanceStackParamList = {
+  Maintenance: undefined
+  MaintenanceForm: { requestId?: string }
+  MaintenanceDetail: { requestId: string }
+}
+
+export type ChecklistStackParamList = {
+  Checklist: undefined
+  ChecklistForm: { bookingId?: string }
+  ChecklistDetail: { checklistId: string }
+}
+
+export type BookingStackParamList = {
+  Booking: undefined
+}
+
+export type ProfileStackParamList = {
   Profile: undefined
 }
 
