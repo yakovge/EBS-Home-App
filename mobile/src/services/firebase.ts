@@ -7,16 +7,16 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import Constants from 'expo-constants';
+import { Config } from '../config';
 
-// Firebase configuration - same as web version
+// Firebase configuration using centralized config
 const firebaseConfig = {
-  apiKey: Constants.expoConfig?.extra?.firebaseApiKey || "AIzaSyCZKZfRt8k2CmuADEnIy7TXjVFmBQThCa4",
-  authDomain: Constants.expoConfig?.extra?.firebaseAuthDomain || "ebs-home-c4f07.firebaseapp.com",
-  projectId: Constants.expoConfig?.extra?.firebaseProjectId || "ebs-home-c4f07",
-  storageBucket: Constants.expoConfig?.extra?.firebaseStorageBucket || "ebs-home-c4f07.firebasestorage.app",
-  messagingSenderId: Constants.expoConfig?.extra?.firebaseMessagingSenderId || "533256873637",
-  appId: Constants.expoConfig?.extra?.firebaseAppId || "1:533256873637:web:1d2f91fe3c30591a7b0f4c"
+  apiKey: Config.FIREBASE.apiKey,
+  authDomain: Config.FIREBASE.authDomain,
+  projectId: Config.FIREBASE.projectId,
+  storageBucket: Config.FIREBASE.storageBucket,
+  messagingSenderId: Config.FIREBASE.messagingSenderId,
+  appId: Config.FIREBASE.appId,
 };
 
 // Initialize Firebase

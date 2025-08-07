@@ -27,6 +27,7 @@ import ChecklistScreen from '../screens/ChecklistScreen'
 import ChecklistFormScreen from '../screens/ChecklistFormScreen'
 import ChecklistDetailScreen from '../screens/ChecklistDetailScreen'
 import BookingScreen from '../screens/BookingScreen'
+import BookingFormScreen from '../screens/BookingFormScreen'
 import ProfileScreen from '../screens/ProfileScreen'
 
 const Tab = createBottomTabNavigator<MainTabParamList>()
@@ -155,6 +156,11 @@ function BookingStackScreen() {
         name="Booking"
         component={BookingScreen}
         options={{ title: t('booking.title') }}
+      />
+      <BookingStackNav.Screen
+        name="BookingForm"
+        component={BookingFormScreen}
+        options={{ title: t('booking.createBooking') }}
       />
     </BookingStackNav.Navigator>
   )

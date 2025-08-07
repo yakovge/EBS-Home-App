@@ -33,14 +33,6 @@ export default function ChecklistList({
     return new Date(dateString).toLocaleDateString()
   }
 
-  const getStatusColor = (isComplete: boolean) => {
-    return isComplete ? theme.colors.secondary : theme.colors.primary
-  }
-
-  const getStatusText = (isComplete: boolean) => {
-    return isComplete ? t('checklist.completed') : t('checklist.pending')
-  }
-
   const renderChecklistItem = ({ item }: { item: ExitChecklist }) => {
     const entriesCount = item.entries?.length || 0
     const photosCount = item.entries?.reduce((count, entry) => 
@@ -66,19 +58,6 @@ export default function ChecklistList({
               </Text>
             </View>
             
-            <View style={styles.headerRight}>
-              <Chip 
-                mode="flat"
-                style={[
-                  styles.statusChip, 
-                  { backgroundColor: getStatusColor(item.isComplete) + '20' }
-                ]}
-                textStyle={{ color: getStatusColor(item.isComplete) }}
-                compact
-              >
-                {getStatusText(item.isComplete)}
-              </Chip>
-            </View>
           </View>
 
           <View style={styles.cardDetails}>
@@ -180,18 +159,12 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
   },
-  headerRight: {
-    alignItems: 'flex-end',
-  },
   title: {
     fontWeight: '600',
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 12,
-  },
-  statusChip: {
-    height: 24,
   },
   cardDetails: {
     flexDirection: 'row',

@@ -11,7 +11,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import { useTranslation } from 'react-i18next'
 import { useAuthContext } from '../contexts/AuthContext'
 import { apiClient } from '../services/api'
-import { Booking, MaintenanceRequest } from '../types'
+import { Booking, MaintenanceRequest, ExitChecklist } from '../types'
 import LoadingSpinner from '../components/Layout/LoadingSpinner'
 import ErrorMessage from '../components/Layout/ErrorMessage'
 
@@ -27,20 +27,23 @@ export default function DashboardScreen() {
   const [error, setError] = useState('')
   const [currentBookings, setCurrentBookings] = useState<Booking[]>([])
   const [pendingMaintenance, setPendingMaintenance] = useState<MaintenanceRequest[]>([])
+  const [recentChecklists, setRecentChecklists] = useState<ExitChecklist[]>([])
 
   const fetchDashboardData = async (isRefresh = false) => {
     try {
       if (!isRefresh) setLoading(true)
       setError('')
 
-      // Fetch current bookings and pending maintenance in parallel
-      const [bookingsResponse, maintenanceResponse] = await Promise.all([
+      // Fetch current bookings, pending maintenance, and recent checklists in parallel
+      const [bookingsResponse, maintenanceResponse, checklistsResponse] = await Promise.all([
         apiClient.get<Booking[]>('/bookings?status=active'),
-        apiClient.get<MaintenanceRequest[]>('/maintenance?status=pending&limit=5')
+        apiClient.get<MaintenanceRequest[]>('/maintenance?status=pending&limit=5'),
+        apiClient.get<ExitChecklist[]>('/checklists?limit=1&sort=created_at&order=desc')
       ])
 
       setCurrentBookings(bookingsResponse || [])
       setPendingMaintenance(maintenanceResponse || [])
+      setRecentChecklists(checklistsResponse || [])
       
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)
@@ -110,6 +113,55 @@ export default function DashboardScreen() {
         </Card.Content>
       </Card>
 
+      {/* Quick Actions */}
+      <Card style={styles.sectionCard}>
+        <Card.Content>
+          <Text variant="titleLarge" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+            Quick Actions
+          </Text>
+          
+          <View style={styles.actionsContainer}>
+            <Button
+              mode="contained"
+              icon="wrench"
+              onPress={() => {
+                navigation.navigate('Maintenance' as never);
+                // Note: MaintenanceScreen will need a "Create" button to navigate to MaintenanceForm
+              }}
+              style={styles.actionButton}
+              contentStyle={styles.actionButtonContent}
+            >
+              Report Issue
+            </Button>
+            
+            <Button
+              mode="outlined"
+              icon="clipboard-check"
+              onPress={() => {
+                navigation.navigate('Checklist' as never);
+                // Note: ChecklistScreen will need a "Create" button to navigate to ChecklistForm
+              }}
+              style={styles.actionButton}
+              contentStyle={styles.actionButtonContent}
+            >
+              Exit Checklist
+            </Button>
+            
+            <Button
+              mode="outlined"
+              icon="calendar-plus"
+              onPress={() => {
+                navigation.navigate('Booking' as never);
+              }}
+              style={styles.actionButton}
+              contentStyle={styles.actionButtonContent}
+            >
+              Booking
+            </Button>
+          </View>
+        </Card.Content>
+      </Card>
+
       {/* Current Bookings */}
       <Card style={styles.sectionCard}>
         <Card.Content>
@@ -157,6 +209,63 @@ export default function DashboardScreen() {
         </Card.Content>
       </Card>
 
+      {/* Recent Checklists */}
+      <Card style={styles.sectionCard}>
+        <Card.Content>
+          <View style={styles.sectionHeader}>
+            <Text variant="titleLarge" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+              Last Checklist
+            </Text>
+            <IconButton
+              icon="clipboard-check"
+              size={20}
+              iconColor={theme.colors.primary}
+              onPress={() => navigation.navigate('Checklist' as never)}
+            />
+          </View>
+          
+          {recentChecklists.length === 0 ? (
+            <Text variant="bodyMedium" style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>
+              No checklists yet
+            </Text>
+          ) : (
+            recentChecklists.slice(0, 1).map((checklist) => (
+              <View key={checklist.id} style={styles.checklistItem}>
+                <View style={styles.checklistInfo}>
+                  <Text variant="bodyMedium" style={[styles.checklistTitle, { color: theme.colors.onSurface }]}>
+                    Exit Checklist - {checklist.userName}
+                    {checklist.bookingId && ` (Booking ${checklist.bookingId.slice(-4)})`}
+                  </Text>
+                  <Text variant="bodySmall" style={[styles.checklistDate, { color: theme.colors.onSurfaceVariant }]}>
+                    {checklist.submittedAt ? 
+                      `Submitted ${formatDate(checklist.submittedAt)}` : 
+                      `Created ${formatDate(checklist.createdAt)}`
+                    }
+                  </Text>
+                </View>
+                <Chip 
+                  mode="flat"
+                  style={[
+                    styles.statusChip, 
+                    { 
+                      backgroundColor: checklist.isComplete ? 
+                        theme.colors.tertiary + '20' : theme.colors.primary + '20' 
+                    }
+                  ]}
+                  textStyle={{ 
+                    color: checklist.isComplete ? 
+                      theme.colors.tertiary : theme.colors.primary 
+                  }}
+                  compact
+                >
+                  {checklist.isComplete ? 'Complete' : 'Pending'}
+                </Chip>
+              </View>
+            ))
+          )}
+        </Card.Content>
+      </Card>
+
       {/* Pending Maintenance */}
       <Card style={styles.sectionCard}>
         <Card.Content>
@@ -198,37 +307,6 @@ export default function DashboardScreen() {
               </View>
             ))
           )}
-        </Card.Content>
-      </Card>
-
-      {/* Quick Actions */}
-      <Card style={styles.sectionCard}>
-        <Card.Content>
-          <Text variant="titleLarge" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-            Quick Actions
-          </Text>
-          
-          <View style={styles.actionsContainer}>
-            <Button
-              mode="contained"
-              icon="wrench"
-              onPress={() => navigation.navigate('MaintenanceForm' as never)}
-              style={styles.actionButton}
-              contentStyle={styles.actionButtonContent}
-            >
-              Report Issue
-            </Button>
-            
-            <Button
-              mode="outlined"
-              icon="clipboard-check"
-              onPress={() => navigation.navigate('ChecklistForm' as never)}
-              style={styles.actionButton}
-              contentStyle={styles.actionButtonContent}
-            >
-              Exit Checklist
-            </Button>
-          </View>
         </Card.Content>
       </Card>
     </ScrollView>
@@ -290,7 +368,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   reminderChip: {
-    height: 24,
+    height: 32,
+    alignSelf: 'center',
+    justifyContent: 'center',
   },
   maintenanceItem: {
     flexDirection: 'row',
@@ -311,8 +391,29 @@ const styles = StyleSheet.create({
   maintenanceLocation: {
     fontSize: 12,
   },
+  checklistItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  checklistInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  checklistTitle: {
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  checklistDate: {
+    fontSize: 12,
+  },
   statusChip: {
-    height: 24,
+    height: 32,
+    alignSelf: 'center',
+    justifyContent: 'center',
   },
   actionsContainer: {
     flexDirection: 'row',

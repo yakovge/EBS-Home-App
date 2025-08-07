@@ -8,6 +8,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Device from 'expo-device'
 import { User } from '../types'
 import { authService } from '../services/authService'
+import { notificationService } from '../services/notificationService'
+import { webSocketService } from '../services/websocketService'
+import { Config } from '../config'
 
 interface AuthContextType {
   user: User | null
@@ -48,9 +51,46 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return
       }
 
+      // Check if this is a demo session
+      if (token === Config.DEMO_TOKEN) {
+        // Demo mode - create demo user without backend call
+        const demoUser: User = {
+          id: 'demo_user_123',
+          name: 'Demo User',
+          email: 'demo@eisenberg.family',
+          role: 'family_member',
+          preferredLanguage: 'en',
+          isActive: true,
+          deviceHistory: [],
+          firebaseUid: 'demo_firebase_uid',
+          isYaffa: false,
+          isMaintenancePerson: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+        setUser(demoUser)
+        setLoading(false)
+        return
+      }
+
       const response = await authService.verifySession(token)
       if (response.valid && response.user) {
         setUser(response.user)
+        
+        // Initialize push notifications for existing session
+        try {
+          await notificationService.initialize()
+          notificationService.setupNotificationListeners()
+        } catch (notificationError) {
+          console.error('Failed to initialize notifications for existing session:', notificationError)
+        }
+        
+        // Initialize WebSocket connection for existing session
+        try {
+          await webSocketService.initialize(response.user.id)
+        } catch (websocketError) {
+          console.error('Failed to initialize WebSocket for existing session:', websocketError)
+        }
       } else {
         // Invalid session, clear token
         await AsyncStorage.removeItem('session_token')
@@ -75,14 +115,70 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setLoading(true)
       
-      // Use provided device info or get it automatically
-      const finalDeviceInfo = deviceInfo || getDeviceInfo()
+      // DEMO MODE: Check if this is a demo token
+      if (token === Config.DEMO_TOKEN) {
+        // Demo mode - bypass backend call
+        const demoUser: User = {
+          id: 'demo_user_123',
+          name: 'Demo User',
+          email: 'demo@eisenberg.family',
+          role: 'family_member',
+          preferredLanguage: 'en',
+          isActive: true,
+          deviceHistory: [],
+          firebaseUid: 'demo_firebase_uid',
+          isYaffa: false,
+          isMaintenancePerson: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+        
+        setUser(demoUser)
+        await AsyncStorage.setItem('session_token', token)
+        await AsyncStorage.setItem('user_data', JSON.stringify(demoUser))
+        
+        // Initialize push notifications for demo mode too
+        try {
+          await notificationService.initialize()
+          notificationService.setupNotificationListeners()
+        } catch (notificationError) {
+          console.error('Failed to initialize notifications in demo mode:', notificationError)
+        }
+        
+        // Initialize WebSocket connection for demo mode
+        try {
+          await webSocketService.initialize(demoUser.id)
+        } catch (websocketError) {
+          console.error('Failed to initialize WebSocket in demo mode:', websocketError)
+        }
+        
+        return
+      }
       
+      // Normal login flow with backend
+      const finalDeviceInfo = deviceInfo || getDeviceInfo()
       const response = await authService.login(token, finalDeviceInfo)
       
       if (response.user && response.session_token) {
         setUser(response.user)
         await AsyncStorage.setItem('session_token', response.session_token)
+        
+        // Initialize push notifications after successful login
+        try {
+          await notificationService.initialize()
+          notificationService.setupNotificationListeners()
+        } catch (notificationError) {
+          console.error('Failed to initialize notifications:', notificationError)
+          // Don't fail login if notifications fail
+        }
+        
+        // Initialize WebSocket connection after successful login
+        try {
+          await webSocketService.initialize(response.user.id)
+        } catch (websocketError) {
+          console.error('Failed to initialize WebSocket:', websocketError)
+          // Don't fail login if WebSocket fails
+        }
       } else {
         throw new Error('Invalid login response: missing user or session token')
       }
@@ -103,6 +199,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (error) {
       console.error('Logout error:', error)
     } finally {
+      // Cleanup WebSocket connection
+      webSocketService.cleanup()
+      
       setUser(null)
       await AsyncStorage.removeItem('session_token')
     }

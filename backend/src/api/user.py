@@ -7,12 +7,16 @@ from flask import Blueprint, request, jsonify, current_app
 from typing import Dict, Any
 
 from ..services.user_service import UserService
+from ..services.notification_service import NotificationService
+from ..services.storage_service import StorageService
 from ..middleware.auth import require_auth, require_role
 from ..utils.validators import validate_request_data
 from ..utils.exceptions import ResourceNotFoundError, ValidationError
 
 user_bp = Blueprint('user', __name__)
 user_service = UserService()
+notification_service = NotificationService()
+storage_service = StorageService()
 
 
 @user_bp.route('/profile', methods=['GET'])
@@ -171,3 +175,138 @@ def update_user_role(current_user, user_id):
     except Exception as e:
         current_app.logger.error(f"Update user role error: {str(e)}")
         return jsonify({'error': 'Failed to update user role', 'message': str(e)}), 500
+
+
+@user_bp.route('/fcm-token', methods=['POST'])
+@require_auth
+def update_fcm_token(current_user):
+    """
+    Update user's FCM token for push notifications.
+    Expects: { fcm_token }
+    """
+    try:
+        data = validate_request_data(request.json, {
+            'fcm_token': {'type': str, 'required': True, 'min_length': 10}
+        })
+        
+        # Update user's FCM token
+        success = notification_service.update_user_fcm_token(
+            current_user.id, 
+            data['fcm_token']
+        )
+        
+        if success:
+            return jsonify({
+                'message': 'FCM token updated successfully'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Failed to update FCM token'
+            }), 500
+            
+    except ValidationError as e:
+        return jsonify({'error': 'Validation error', 'message': str(e)}), 400
+    except Exception as e:
+        current_app.logger.error(f"Update FCM token error: {str(e)}")
+        return jsonify({'error': 'Failed to update FCM token', 'message': str(e)}), 500
+
+
+@user_bp.route('/test-notification', methods=['POST'])
+@require_auth
+def test_notification(current_user):
+    """
+    Send test notification to current user (for debugging).
+    Expects: { message? }
+    """
+    try:
+        data = request.json or {}
+        message = data.get('message', 'Test notification from EBS Home!')
+        
+        # Check if user has FCM token
+        user = user_service.get_user_by_id(current_user.id)
+        if not user or not hasattr(user, 'fcm_token') or not user.fcm_token:
+            return jsonify({
+                'error': 'No FCM token found for user'
+            }), 400
+        
+        # Send test notification
+        success = notification_service._send_fcm_notification(
+            token=user.fcm_token,
+            title="Test Notification",
+            body=message,
+            data={
+                'type': 'test',
+                'user_id': current_user.id
+            }
+        )
+        
+        if success:
+            return jsonify({
+                'message': 'Test notification sent successfully'
+            }), 200
+        else:
+            return jsonify({
+                'error': 'Failed to send test notification'
+            }), 500
+            
+    except Exception as e:
+        current_app.logger.error(f"Test notification error: {str(e)}")
+        return jsonify({'error': 'Failed to send test notification', 'message': str(e)}), 500
+
+
+@user_bp.route('/upload-photo', methods=['POST'])
+@require_auth
+def upload_profile_photo(current_user):
+    """
+    Upload a profile photo for the current user.
+    Expects multipart form data with 'photo' file.
+    Returns the photo URL.
+    """
+    try:
+        # Check if photo file is present
+        if 'photo' not in request.files:
+            return jsonify({'error': 'No photo file provided'}), 400
+        
+        photo_file = request.files['photo']
+        if photo_file.filename == '':
+            return jsonify({'error': 'No photo file selected'}), 400
+        
+        # Validate file type and size
+        allowed_types = {'image/jpeg', 'image/jpg', 'image/png', 'image/webp'}
+        if photo_file.content_type not in allowed_types:
+            return jsonify({'error': 'Invalid file type. Only JPEG, PNG, and WebP are allowed'}), 400
+        
+        # Check file size (max 5MB)
+        max_size = 5 * 1024 * 1024  # 5MB
+        photo_file.seek(0, 2)  # Seek to end
+        file_size = photo_file.tell()
+        photo_file.seek(0)  # Reset to beginning
+        
+        if file_size > max_size:
+            return jsonify({'error': 'File size too large. Maximum 5MB allowed'}), 400
+        
+        # Read file bytes
+        file_bytes = photo_file.read()
+        filename = photo_file.filename
+        
+        # Upload profile photo to Firebase Storage
+        photo_url = storage_service.upload_profile_photo(
+            user_id=current_user.id,
+            file_bytes=file_bytes,
+            filename=filename
+        )
+        
+        if not photo_url:
+            return jsonify({'error': 'Failed to upload profile photo'}), 500
+        
+        # Update user profile with photo URL (optional - could store in user record)
+        # For now, just return the photo URL
+        
+        return jsonify({
+            'photo_url': photo_url,
+            'message': 'Profile photo uploaded successfully'
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Upload profile photo error: {str(e)}")
+        return jsonify({'error': 'Failed to upload profile photo', 'message': str(e)}), 500

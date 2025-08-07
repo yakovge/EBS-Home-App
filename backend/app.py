@@ -5,12 +5,18 @@ This file initializes and configures the Flask application.
 
 import os
 from flask import Flask, request, send_from_directory
+from flask_socketio import SocketIO
 from dotenv import load_dotenv
 
 from src.api import auth_bp, maintenance_bp, booking_bp, checklist_bp, user_bp, dashboard_bp
+from src.api.firebase import firebase_bp
+from src.api.realtime import realtime_bp
 from src.utils.firebase_config import initialize_firebase
 from src.middleware.error_handler import register_error_handlers
 from src.middleware.auth import setup_auth_middleware
+from src.services.scheduler_service import scheduler_service
+from src.services.realtime_service import realtime_service
+from src.services.notification_service import NotificationService
 
 # Load environment variables
 load_dotenv()
@@ -19,7 +25,7 @@ load_dotenv()
 def create_app():
     """
     Create and configure the Flask application.
-    Returns a configured Flask app instance.
+    Returns a configured Flask app instance with WebSocket support.
     """
     app = Flask(__name__)
     
@@ -27,8 +33,24 @@ def create_app():
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
     app.config['CORS_ORIGINS'] = os.getenv('FRONTEND_URL', 'http://localhost:3001')
     
+    # Initialize SocketIO for real-time notifications
+    socketio = SocketIO(app, cors_allowed_origins="*", 
+                       async_mode='threading',
+                       logger=True, 
+                       engineio_logger=True)
+    
     # Initialize Firebase
     initialize_firebase()
+    
+    # Initialize real-time service with SocketIO
+    realtime_service.init_app(app, socketio)
+    
+    # Connect notification service with real-time service
+    notification_service = NotificationService()
+    notification_service.set_realtime_service(realtime_service)
+    
+    # Start background scheduler service for notifications
+    scheduler_service.start()
     
     # Setup middleware
     setup_auth_middleware(app)
@@ -72,6 +94,8 @@ def create_app():
     app.register_blueprint(checklist_bp, url_prefix='/api/checklists')
     app.register_blueprint(user_bp, url_prefix='/api/users')
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+    app.register_blueprint(firebase_bp, url_prefix='/api/firebase')
+    app.register_blueprint(realtime_bp, url_prefix='/api/realtime')
     
     # Health check endpoint
     @app.route('/health')
@@ -91,11 +115,17 @@ def create_app():
         uploads_dir = os.path.join(os.path.dirname(__file__), 'uploads')
         return send_from_directory(uploads_dir, filepath)
     
-    return app
+    # Store SocketIO instance on app for access from other modules
+    app.socketio = socketio
+    
+    return app, socketio
 
 
 if __name__ == '__main__':
-    app = create_app()
+    app, socketio = create_app()
     port = int(os.getenv('PORT', 5000))
     host = os.getenv('HOST', '0.0.0.0')
-    app.run(host=host, port=port, debug=os.getenv('FLASK_DEBUG', 'False') == 'True')
+    debug = os.getenv('FLASK_DEBUG', 'False') == 'True'
+    
+    print(f"Starting EBS Home API with WebSocket support on {host}:{port}")
+    socketio.run(app, host=host, port=port, debug=debug)

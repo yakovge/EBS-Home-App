@@ -40,7 +40,9 @@
       "Bash(git checkout:*)",
       "Bash(npx create-expo-app:*)",
       "Bash(npx expo install:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(node:*)",
+      "Bash(npx expo start:*)"
     ],
     "deny": []
   }

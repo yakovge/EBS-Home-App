@@ -163,6 +163,7 @@ export type ChecklistStackParamList = {
 
 export type BookingStackParamList = {
   Booking: undefined
+  BookingForm: { startDate?: string; endDate?: string } | undefined
 }
 
 export type ProfileStackParamList = {

@@ -183,7 +183,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   statusChip: {
-    height: 24,
+    height: 32,
+    alignSelf: 'center',
+    justifyContent: 'center',
   },
   cardDetails: {
     flexDirection: 'row',

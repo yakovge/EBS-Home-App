@@ -63,8 +63,7 @@ export default function ChecklistScreen() {
   }
 
   const handleItemPress = (checklist: ExitChecklist) => {
-    // TODO: Navigate to checklist detail when implemented
-    console.log('Navigate to checklist detail:', checklist.id)
+    navigation.navigate('ChecklistDetail' as never, { checklist } as never)
   }
 
   const handleCreateChecklist = () => {

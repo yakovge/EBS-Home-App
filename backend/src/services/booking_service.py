@@ -9,6 +9,7 @@ from ..models.booking import Booking
 from ..repositories.booking_repository import BookingRepository
 from ..repositories.user_repository import UserRepository
 from ..utils.exceptions import ConflictError
+from .notification_service import NotificationService
 
 
 class BookingService:
@@ -17,6 +18,7 @@ class BookingService:
     def __init__(self):
         self.booking_repository = BookingRepository()
         self.user_repository = UserRepository()
+        self.notification_service = NotificationService()
     
     def create_booking(self, user_id: str, start_date: str, end_date: str, notes: Optional[str] = None) -> str:
         """
@@ -104,6 +106,14 @@ class BookingService:
         try:
             booking_id = self.booking_repository.create_booking(booking_data)
             print(f"Info: Created booking {booking_id} for user {user_id} from {start_date} to {end_date}")
+            
+            # Send booking confirmation notification
+            try:
+                self.notification_service.send_booking_confirmation(user_id, booking_id)
+            except Exception as notification_error:
+                print(f"Warning: Failed to send booking confirmation: {notification_error}")
+                # Don't fail booking creation if notification fails
+            
             return booking_id
         except Exception as e:
             print(f"Error: Failed to create booking for user {user_id}: {str(e)}")

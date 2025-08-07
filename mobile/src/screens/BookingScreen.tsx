@@ -4,9 +4,10 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native'
-import { Card, Text, Chip, Button } from 'react-native-paper'
+import { View, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native'
+import { Card, Text, Chip, Button, TextInput } from 'react-native-paper'
 import { Calendar } from 'react-native-calendars'
+import { useNavigation } from '@react-navigation/native'
 import { useTheme } from '../contexts/ThemeContext'
 import { useTranslation } from 'react-i18next'
 import { apiClient } from '../services/api'
@@ -18,6 +19,7 @@ import EmptyState from '../components/Layout/EmptyState'
 export default function BookingScreen() {
   const { theme } = useTheme()
   const { t } = useTranslation()
+  const navigation = useNavigation()
   
   // State
   const [loading, setLoading] = useState(true)
@@ -25,6 +27,11 @@ export default function BookingScreen() {
   const [error, setError] = useState('')
   const [bookings, setBookings] = useState<Booking[]>([])
   const [selectedDate, setSelectedDate] = useState('')
+  const [quickBookingStart, setQuickBookingStart] = useState('')
+  const [quickBookingEnd, setQuickBookingEnd] = useState('')
+  const [showQuickBookButton, setShowQuickBookButton] = useState(false)
+  const [quickBookingGuestName, setQuickBookingGuestName] = useState('')
+  const [quickBookingLoading, setQuickBookingLoading] = useState(false)
 
   const fetchBookings = async (isRefresh = false) => {
     try {
@@ -115,6 +122,115 @@ export default function BookingScreen() {
     return marked
   }, {} as any)
 
+  const handleDayPress = (day: any) => {
+    const dateString = day.dateString
+    const selectedDateObj = new Date(dateString)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    // Don't allow selecting past dates
+    if (selectedDateObj < today) {
+      return
+    }
+    
+    setSelectedDate(dateString)
+    
+    if (!quickBookingStart) {
+      // First date selection
+      setQuickBookingStart(dateString)
+      setQuickBookingEnd('')
+      setShowQuickBookButton(false)
+    } else if (!quickBookingEnd) {
+      // Second date selection
+      const startDate = new Date(quickBookingStart)
+      const endDate = new Date(dateString)
+      
+      if (endDate <= startDate) {
+        // If second date is before or same as first, reset and start over
+        setQuickBookingStart(dateString)
+        setQuickBookingEnd('')
+        setShowQuickBookButton(false)
+      } else {
+        // Valid range selected
+        setQuickBookingEnd(dateString)
+        setShowQuickBookButton(true)
+      }
+    } else {
+      // Start over with new selection
+      setQuickBookingStart(dateString)
+      setQuickBookingEnd('')
+      setShowQuickBookButton(false)
+    }
+  }
+
+  const handleQuickBooking = async () => {
+    if (quickBookingStart && quickBookingEnd && quickBookingGuestName.trim()) {
+      try {
+        setQuickBookingLoading(true)
+        
+        const bookingData = {
+          start_date: quickBookingStart,
+          end_date: quickBookingEnd,
+          guest_name: quickBookingGuestName.trim(),
+          notes: 'Quick booking from calendar'
+        }
+        
+        await apiClient.post('/bookings', bookingData)
+        
+        // Clear quick booking state
+        clearQuickBooking()
+        
+        // Refresh bookings list
+        fetchBookings(true)
+        
+        // Show success message
+        Alert.alert(
+          'Booking Created!',
+          `Successfully booked ${formatDate(quickBookingStart)} - ${formatDate(quickBookingEnd)} for ${quickBookingGuestName}`,
+          [{ text: 'OK' }]
+        )
+        
+      } catch (error) {
+        console.error('Failed to create quick booking:', error)
+        const errorMessage = error instanceof Error ? error.message : 'Failed to create booking'
+        Alert.alert('Error', errorMessage)
+      } finally {
+        setQuickBookingLoading(false)
+      }
+    }
+  }
+
+  const clearQuickBooking = () => {
+    setQuickBookingStart('')
+    setQuickBookingEnd('')
+    setShowQuickBookButton(false)
+    setSelectedDate('')
+    setQuickBookingGuestName('')
+  }
+
+  const getDateRange = (startDate: string, endDate: string) => {
+    const range: any = {}
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    const current = new Date(start)
+    
+    while (current <= end) {
+      const dateString = current.toISOString().split('T')[0]
+      
+      if (dateString === startDate) {
+        range[dateString] = { startingDay: true, color: theme.colors.secondary, textColor: theme.colors.onSecondary }
+      } else if (dateString === endDate) {
+        range[dateString] = { endingDay: true, color: theme.colors.secondary, textColor: theme.colors.onSecondary }
+      } else {
+        range[dateString] = { color: theme.colors.secondary + '60', textColor: theme.colors.onSecondary }
+      }
+      
+      current.setDate(current.getDate() + 1)
+    }
+    
+    return range
+  }
+
   if (loading) {
     return <LoadingSpinner text={t('common.loading')} fullScreen />
   }
@@ -147,15 +263,33 @@ export default function BookingScreen() {
           </Text>
           
           <Calendar
-            onDayPress={(day) => setSelectedDate(day.dateString)}
+            onDayPress={handleDayPress}
             markedDates={{
               ...markedDates,
               [selectedDate]: {
                 ...markedDates[selectedDate],
                 selected: true,
                 selectedColor: theme.colors.primary,
-              }
+              },
+              ...(quickBookingStart && {
+                [quickBookingStart]: {
+                  ...markedDates[quickBookingStart],
+                  startingDay: true,
+                  color: theme.colors.secondary,
+                  textColor: theme.colors.onSecondary,
+                }
+              }),
+              ...(quickBookingEnd && {
+                [quickBookingEnd]: {
+                  ...markedDates[quickBookingEnd],
+                  endingDay: true,
+                  color: theme.colors.secondary,
+                  textColor: theme.colors.onSecondary,
+                }
+              }),
+              ...(quickBookingStart && quickBookingEnd && getDateRange(quickBookingStart, quickBookingEnd))
             }}
+            markingType="period"
             theme={{
               backgroundColor: theme.colors.background,
               calendarBackground: theme.colors.surface,
@@ -171,12 +305,85 @@ export default function BookingScreen() {
         </Card.Content>
       </Card>
 
+      {/* Quick Booking */}
+      {(quickBookingStart || showQuickBookButton) && (
+        <Card style={styles.quickBookingCard}>
+          <Card.Content>
+            <View style={styles.quickBookingContent}>
+              <View style={styles.quickBookingInfo}>
+                <Text variant="bodyMedium" style={[styles.quickBookingTitle, { color: theme.colors.onSurface }]}>
+                  {quickBookingStart && quickBookingEnd ? (
+                    `${formatDate(quickBookingStart)} - ${formatDate(quickBookingEnd)}`
+                  ) : quickBookingStart ? (
+                    `Selected: ${formatDate(quickBookingStart)} (select end date)`
+                  ) : (
+                    'Select dates'
+                  )}
+                </Text>
+                {showQuickBookButton && (
+                  <Text variant="bodySmall" style={[styles.quickBookingSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                    Enter guest name to book these dates
+                  </Text>
+                )}
+              </View>
+              
+              {showQuickBookButton && (
+                <View style={styles.quickBookingForm}>
+                  <TextInput
+                    mode="outlined"
+                    label="Guest Name"
+                    value={quickBookingGuestName}
+                    onChangeText={setQuickBookingGuestName}
+                    placeholder="Enter guest name"
+                    style={styles.guestNameInput}
+                    compact
+                  />
+                </View>
+              )}
+              
+              <View style={styles.quickBookingActions}>
+                {showQuickBookButton && (
+                  <Button
+                    mode="contained"
+                    onPress={handleQuickBooking}
+                    style={styles.quickBookButton}
+                    disabled={!quickBookingGuestName.trim() || quickBookingLoading}
+                    loading={quickBookingLoading}
+                    compact
+                  >
+                    {quickBookingLoading ? 'Booking...' : 'Book These Days'}
+                  </Button>
+                )}
+                <Button
+                  mode="outlined"
+                  onPress={clearQuickBooking}
+                  style={styles.clearButton}
+                  compact
+                >
+                  Clear
+                </Button>
+              </View>
+            </View>
+          </Card.Content>
+        </Card>
+      )}
+
       {/* Booking List */}
       <Card style={styles.listCard}>
         <Card.Content>
-          <Text variant="titleLarge" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-            {t('booking.title')}
-          </Text>
+          <View style={styles.listHeader}>
+            <Text variant="titleLarge" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+              {t('booking.title')}
+            </Text>
+            <Button
+              mode="contained"
+              onPress={() => navigation.navigate('BookingForm' as never)}
+              icon="plus"
+              compact
+            >
+              {t('booking.createBooking')}
+            </Button>
+          </View>
 
           {bookings.length === 0 ? (
             <EmptyState
@@ -294,6 +501,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
   },
+  listHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   bookingItem: {
     paddingVertical: 12,
     borderBottomWidth: 1,
@@ -317,7 +530,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   statusChip: {
-    height: 24,
+    height: 32,
+    alignSelf: 'center',
+    justifyContent: 'center',
   },
   bookingNotes: {
     fontSize: 12,
@@ -328,7 +543,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   checklistChip: {
-    height: 24,
+    height: 32,
+    alignSelf: 'center',
+    justifyContent: 'center',
   },
   legendTitle: {
     fontWeight: '600',
@@ -347,5 +564,39 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
+  },
+  quickBookingCard: {
+    margin: 16,
+    marginVertical: 8,
+  },
+  quickBookingContent: {
+    flexDirection: 'column',
+    gap: 12,
+  },
+  quickBookingInfo: {
+    alignItems: 'flex-start',
+  },
+  quickBookingForm: {
+    width: '100%',
+  },
+  guestNameInput: {
+    fontSize: 14,
+  },
+  quickBookingTitle: {
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  quickBookingSubtitle: {
+    fontSize: 12,
+  },
+  quickBookingActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  quickBookButton: {
+    minWidth: 100,
+  },
+  clearButton: {
+    minWidth: 60,
   },
 })

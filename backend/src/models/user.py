@@ -62,6 +62,7 @@ class User(BaseModel):
         self.current_device: Optional[UserDevice] = None
         self.device_history: List[UserDevice] = []
         self.firebase_uid: Optional[str] = None
+        self.fcm_token: Optional[str] = None  # For push notifications
         
         # Special flags
         self.is_yaffa = False  # Gets notifications for completed maintenance
@@ -78,6 +79,7 @@ class User(BaseModel):
             'current_device': self.current_device.to_dict() if self.current_device else None,
             'device_history': [device.to_dict() for device in self.device_history],
             'firebase_uid': self.firebase_uid,
+            'fcm_token': self.fcm_token,
             'is_yaffa': self.is_yaffa,
             'is_maintenance_person': self.is_maintenance_person,
             'created_at': self.created_at,
@@ -95,6 +97,7 @@ class User(BaseModel):
         )
         user.is_active = data.get('is_active', True)
         user.firebase_uid = data.get('firebase_uid')
+        user.fcm_token = data.get('fcm_token')
         user.is_yaffa = data.get('is_yaffa', False)
         user.is_maintenance_person = data.get('is_maintenance_person', False)
         

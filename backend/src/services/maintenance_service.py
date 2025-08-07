@@ -8,6 +8,7 @@ from datetime import datetime
 from ..models.maintenance import MaintenanceRequest
 from ..repositories.maintenance_repository import MaintenanceRepository
 from ..repositories.user_repository import UserRepository
+from .notification_service import NotificationService
 
 
 class MaintenanceService:
@@ -16,6 +17,7 @@ class MaintenanceService:
     def __init__(self):
         self.maintenance_repository = MaintenanceRepository()
         self.user_repository = UserRepository()
+        self.notification_service = NotificationService()
     
     def create_maintenance_request(self, user_id: str, description: str, location: str, photo_urls: List[str]) -> str:
         """
@@ -94,6 +96,17 @@ class MaintenanceService:
             request_id = self.maintenance_repository.create_maintenance_request(maintenance_data)
             print(f"SERVICE: Repository returned request_id: {request_id}")
             print(f"Info: Created maintenance request {request_id} for user {user_id}")
+            
+            # Send notification to maintenance person
+            try:
+                user = self.user_repository.get_user_by_id(user_id)
+                user_name = user.name if user else "Unknown User"
+                notification_message = f"{user_name} reported: {description} at {location}"
+                self.notification_service.send_maintenance_notification(request_id, notification_message)
+            except Exception as notification_error:
+                print(f"Warning: Failed to send maintenance notification: {notification_error}")
+                # Don't fail request creation if notification fails
+            
             return request_id
         except Exception as e:
             print(f"SERVICE REPOSITORY ERROR: Failed to create maintenance request for user {user_id}: {str(e)}")

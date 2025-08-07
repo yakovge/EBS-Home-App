@@ -12,6 +12,8 @@ import { useAuthContext } from '../../contexts/AuthContext'
 import { authService } from '../../services/authService'
 import FormField from '../Forms/FormField'
 import LoadingSpinner from '../Layout/LoadingSpinner'
+import GoogleSignInButton from './GoogleSignInButton'
+import DemoLoginButton from './DemoLoginButton'
 
 export default function LoginForm() {
   const { theme } = useTheme()
@@ -85,6 +87,18 @@ export default function LoginForm() {
           >
             {t('auth.login')}
           </Text>
+          
+          {/* Demo and Google Sign-In Options */}
+          <DemoLoginButton />
+          <GoogleSignInButton />
+          
+          <View style={styles.divider}>
+            <View style={[styles.dividerLine, { backgroundColor: theme.colors.outline }]} />
+            <Text style={[styles.dividerText, { color: theme.colors.onSurfaceVariant }]}>
+              OR
+            </Text>
+            <View style={[styles.dividerLine, { backgroundColor: theme.colors.outline }]} />
+          </View>
           
           <Text 
             variant="bodyMedium" 
@@ -177,5 +191,18 @@ const styles = StyleSheet.create({
   },
   footerText: {
     textAlign: 'center',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    paddingHorizontal: 16,
+    fontSize: 12,
   },
 })

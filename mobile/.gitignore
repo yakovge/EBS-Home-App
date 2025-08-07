@@ -32,6 +32,31 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env.production
+.env.staging
+
+# Sensitive configuration files
+android-service-account-key*.json
+google-services.json
+GoogleService-Info.plist
+
+# Build artifacts
+build/
+coverage/
+*.log
+
+# EAS
+.easignore
 
 # typescript
 *.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+coverage/
+*.lcov
