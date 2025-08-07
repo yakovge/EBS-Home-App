@@ -22,7 +22,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "This app uses the camera to take photos for maintenance requests and checklists.",
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select photos for maintenance requests and checklists.",
-        "NSLocationWhenInUseUsageDescription": "This app uses location to help identify maintenance issues in the house."
+        "NSLocationWhenInUseUsageDescription": "This app uses location to help identify maintenance issues in the house.",
+        "NSFaceIDUsageDescription": "This app uses Face ID for secure authentication and protecting your account."
       }
     },
     "android": {
@@ -46,8 +47,9 @@
     },
     "plugins": [
       "expo-camera",
-      "expo-image-picker",
-      "expo-location"
+      "expo-image-picker", 
+      "expo-location",
+      "expo-secure-store"
     ]
   }
 }

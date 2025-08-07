@@ -65,6 +65,15 @@ class SecurityService {
   }
 
   /**
+   * Public initialize method for external initialization
+   */
+  async initialize(): Promise<void> {
+    // Constructor already calls initializeSecurity(), but this provides
+    // a public interface for re-initialization if needed
+    return this.initializeSecurity();
+  }
+
+  /**
    * Initialize security service
    */
   private async initializeSecurity(): Promise<void> {
@@ -119,11 +128,19 @@ class SecurityService {
       if (!encryptionKey) {
         // Generate new encryption key
         encryptionKey = await Crypto.randomUUID();
-        await SecureStore.setItemAsync(
-          this.ENCRYPTION_KEY_NAME,
-          encryptionKey,
-          { requireAuthentication: this.config.enableBiometric }
-        );
+        
+        try {
+          // Try to store with biometric authentication if enabled
+          await SecureStore.setItemAsync(
+            this.ENCRYPTION_KEY_NAME,
+            encryptionKey,
+            { requireAuthentication: this.config.enableBiometric }
+          );
+        } catch (biometricError) {
+          console.warn('Biometric storage failed, falling back to standard storage:', biometricError);
+          // Fall back to standard secure storage without biometric requirement
+          await SecureStore.setItemAsync(this.ENCRYPTION_KEY_NAME, encryptionKey);
+        }
       }
       
       this.encryptionKey = encryptionKey;

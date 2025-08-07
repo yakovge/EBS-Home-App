@@ -118,6 +118,15 @@ class LoggingService {
   }
 
   /**
+   * Public initialize method for external initialization
+   */
+  async initialize(): Promise<void> {
+    // Constructor already calls initializeLogging(), but this provides
+    // a public interface for re-initialization if needed
+    return this.initializeLogging();
+  }
+
+  /**
    * Initialize logging service
    */
   private async initializeLogging(): Promise<void> {
