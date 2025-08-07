@@ -26,10 +26,13 @@ export default function LoadingSpinner({
   const containerStyle = fullScreen ? styles.fullScreenContainer : styles.container
 
   return (
-    <View style={[
-      containerStyle, 
-      { backgroundColor: fullScreen ? theme.colors.background : 'transparent' }
-    ]}>
+    <View 
+      testID="loading-spinner"
+      style={[
+        containerStyle, 
+        { backgroundColor: fullScreen ? theme.colors.background : 'transparent' }
+      ]}
+    >
       <ActivityIndicator 
         animating={true} 
         color={theme.colors.primary} 

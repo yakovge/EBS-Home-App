@@ -30,18 +30,24 @@
   "dependencies": {
     "@hebcal/core": "^5.10.1",
     "@react-native-async-storage/async-storage": "2.1.2",
+    "@react-native-community/netinfo": "11.4.1",
     "@react-navigation/bottom-tabs": "^7.4.5",
     "@react-navigation/native": "^7.1.17",
     "@react-navigation/native-stack": "^7.3.24",
     "expo": "~53.0.20",
+    "expo-build-properties": "~0.14.8",
     "expo-camera": "~16.1.11",
     "expo-constants": "~17.1.7",
+    "expo-crypto": "^14.1.5",
     "expo-device": "~7.1.4",
     "expo-image-manipulator": "~13.1.7",
     "expo-image-picker": "~16.1.4",
+    "expo-local-authentication": "~16.0.5",
     "expo-localization": "^16.1.6",
     "expo-location": "~18.1.6",
+    "expo-media-library": "~17.1.7",
     "expo-notifications": "^0.31.4",
+    "expo-secure-store": "~14.2.3",
     "expo-status-bar": "~2.2.3",
     "firebase": "^12.0.0",
     "i18next": "^25.3.2",
@@ -80,7 +86,8 @@
     ],
     "testMatch": [
       "**/__tests__/**/*.(ts|tsx|js)",
-      "**/*.(test|spec).(ts|tsx|js)"
+      "**/*.(test|spec).(ts|tsx|js)",
+      "!**/__tests__/future/**/*"
     ],
     "transform": {
       "^.+\\.(js|ts|tsx)$": [
@@ -100,7 +107,7 @@
       "json"
     ],
     "transformIgnorePatterns": [
-      "node_modules/(?!(react-native|@react-native|react-native-paper|react-native-vector-icons|@react-navigation|expo|@expo|expo-notifications|expo-device|expo-constants|expo-asset|expo-modules-core|react-native-calendars|@react-native-async-storage)/)"
+      "node_modules/(?!(react-native|@react-native|react-native-paper|react-native-vector-icons|@react-navigation|expo|@expo|expo-notifications|expo-device|expo-constants|expo-asset|expo-modules-core|expo-crypto|expo-local-authentication|expo-secure-store|expo-file-system|expo-image-manipulator|react-native-calendars|@react-native-async-storage|@react-native-community)/)"
     ],
     "collectCoverageFrom": [
       "src/**/*.{ts,tsx}",

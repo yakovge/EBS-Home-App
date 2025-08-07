@@ -11,6 +11,7 @@ import { useNavigation, useRoute } from '@react-navigation/native'
 import { useTheme } from '../contexts/ThemeContext'
 import { useTranslation } from 'react-i18next'
 import { apiClient } from '../services/api'
+import { reminderService } from '../services/reminderService'
 import FormField from '../components/Forms/FormField'
 import LoadingSpinner from '../components/Layout/LoadingSpinner'
 
@@ -160,6 +161,21 @@ export default function BookingFormScreen() {
       }
       
       const response = await apiClient.post('/bookings', bookingData)
+      
+      // Schedule exit reminder for the new booking
+      if (response && response.id) {
+        await reminderService.scheduleReminderForBooking({
+          id: response.id,
+          user_name: bookingData.guest_name,
+          start_date: bookingData.start_date,
+          end_date: bookingData.end_date,
+          notes: bookingData.notes,
+          is_cancelled: false,
+          exit_checklist_completed: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+      }
       
       Alert.alert(
         t('common.success'),

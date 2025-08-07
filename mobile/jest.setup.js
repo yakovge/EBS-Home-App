@@ -50,7 +50,75 @@ jest.mock('expo-image-manipulator', () => ({
   manipulateAsync: jest.fn((uri) => Promise.resolve({ uri })),
   SaveFormat: {
     JPEG: 'jpeg',
+    PNG: 'png',
+    WEBP: 'webp',
   },
+}));
+
+jest.mock('expo-crypto', () => ({
+  digestStringAsync: jest.fn(() => Promise.resolve('mocked_hash')),
+  getRandomBytesAsync: jest.fn(() => Promise.resolve(new Uint8Array([1, 2, 3, 4]))),
+  CryptoDigestAlgorithm: {
+    SHA1: 'SHA1',
+    SHA256: 'SHA256',
+    SHA384: 'SHA384',
+    SHA512: 'SHA512',
+  },
+  CryptoEncoding: {
+    HEX: 'hex',
+    BASE64: 'base64',
+  },
+}));
+
+jest.mock('expo-local-authentication', () => ({
+  hasHardwareAsync: jest.fn(() => Promise.resolve(true)),
+  isEnrolledAsync: jest.fn(() => Promise.resolve(true)),
+  supportedAuthenticationTypesAsync: jest.fn(() => Promise.resolve([1])),
+  getEnrolledLevelAsync: jest.fn(() => Promise.resolve(1)),
+  authenticateAsync: jest.fn(() => Promise.resolve({ success: true })),
+  AuthenticationType: {
+    FINGERPRINT: 1,
+    FACIAL_RECOGNITION: 2,
+  },
+  SecurityLevel: {
+    NONE: 0,
+    SECRET: 1,
+    BIOMETRIC: 2,
+  },
+}));
+
+jest.mock('expo-secure-store', () => ({
+  setItemAsync: jest.fn(() => Promise.resolve()),
+  getItemAsync: jest.fn(() => Promise.resolve(null)),
+  deleteItemAsync: jest.fn(() => Promise.resolve()),
+}));
+
+jest.mock('expo-file-system', () => ({
+  getInfoAsync: jest.fn(() => Promise.resolve({
+    exists: true,
+    size: 1024,
+    uri: 'file://test.jpg',
+    modificationTime: Date.now(),
+    isDirectory: false,
+  })),
+  documentDirectory: 'file://documents/',
+}));
+
+jest.mock('expo-notifications', () => ({
+  getPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  requestPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  scheduleNotificationAsync: jest.fn(() => Promise.resolve('notification-id')),
+  dismissAllNotificationsAsync: jest.fn(() => Promise.resolve()),
+  getExpoPushTokenAsync: jest.fn(() => Promise.resolve({ data: 'mock-token' })),
+  setNotificationHandler: jest.fn(),
+  addNotificationReceivedListener: jest.fn(() => jest.fn()),
+  addNotificationResponseReceivedListener: jest.fn(() => jest.fn()),
+}));
+
+jest.mock('@react-native-community/netinfo', () => ({
+  fetch: jest.fn(() => Promise.resolve({ isConnected: true })),
+  addEventListener: jest.fn(() => jest.fn()),
+  useNetInfo: jest.fn(() => ({ isConnected: true })),
 }));
 
 // Mock React Navigation

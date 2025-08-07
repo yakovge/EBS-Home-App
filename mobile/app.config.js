@@ -126,6 +126,7 @@ export default {
     },
     plugins: [
       "expo-notifications",
+      "expo-secure-store",
       [
         "expo-build-properties",
         {

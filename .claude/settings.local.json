@@ -42,7 +42,10 @@
       "Bash(npx expo install:*)",
       "Bash(npx tsc:*)",
       "Bash(node:*)",
-      "Bash(npx expo start:*)"
+      "Bash(npx expo start:*)",
+      "Bash(npx expo config:*)",
+      "Bash(mv:*)",
+      "Bash(npx jest:*)"
     ],
     "deny": []
   }

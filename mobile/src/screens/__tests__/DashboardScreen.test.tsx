@@ -48,6 +48,27 @@ jest.mock('../../contexts/AuthContext', () => ({
   }),
 }));
 
+// Mock offline context
+jest.mock('../../contexts/OfflineContext', () => ({
+  useOfflineContext: () => ({
+    isOnline: true,
+    syncStatus: {
+      isOnline: true,
+      lastSync: Date.now(),
+      pendingOperations: 0,
+      failedOperations: 0,
+    },
+    pendingOperationsCount: 0,
+    getData: jest.fn().mockImplementation((endpoint) => {
+      const { apiClient } = require('../../services/api');
+      return apiClient.get(endpoint);
+    }),
+    forceSync: jest.fn(),
+    clearCache: jest.fn(),
+    clearPendingOperations: jest.fn(),
+  }),
+}));
+
 // Mock i18n
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -67,6 +88,13 @@ jest.mock('../../components/Layout/ErrorMessage', () => {
   return function MockErrorMessage({ message }: { message: string }) {
     const { Text } = require('react-native');
     return <Text testID="error-message">{message}</Text>;
+  };
+});
+
+jest.mock('../../components/Common/OfflineIndicator', () => {
+  return function MockOfflineIndicator() {
+    const { View } = require('react-native');
+    return <View testID="offline-indicator" />;
   };
 });
 

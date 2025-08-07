@@ -10,15 +10,17 @@ import { useNavigation } from '@react-navigation/native'
 import { useTheme } from '../contexts/ThemeContext'
 import { useTranslation } from 'react-i18next'
 import { useAuthContext } from '../contexts/AuthContext'
-import { apiClient } from '../services/api'
+import { useOfflineContext } from '../contexts/OfflineContext'
 import { Booking, MaintenanceRequest, ExitChecklist } from '../types'
 import LoadingSpinner from '../components/Layout/LoadingSpinner'
 import ErrorMessage from '../components/Layout/ErrorMessage'
+import OfflineIndicator from '../components/Common/OfflineIndicator'
 
 export default function DashboardScreen() {
   const { theme } = useTheme()
   const { t } = useTranslation()
   const { user } = useAuthContext()
+  const { getData, isOnline } = useOfflineContext()
   const navigation = useNavigation()
   
   // State
@@ -36,9 +38,18 @@ export default function DashboardScreen() {
 
       // Fetch current bookings, pending maintenance, and recent checklists in parallel
       const [bookingsResponse, maintenanceResponse, checklistsResponse] = await Promise.all([
-        apiClient.get<Booking[]>('/bookings?status=active'),
-        apiClient.get<MaintenanceRequest[]>('/maintenance?status=pending&limit=5'),
-        apiClient.get<ExitChecklist[]>('/checklists?limit=1&sort=created_at&order=desc')
+        getData<Booking[]>('/bookings?status=active', 'dashboard_bookings', { 
+          cacheTTL: 5 * 60 * 1000, // 5 minutes cache
+          skipCache: isRefresh 
+        }),
+        getData<MaintenanceRequest[]>('/maintenance?status=pending&limit=5', 'dashboard_maintenance', { 
+          cacheTTL: 3 * 60 * 1000, // 3 minutes cache
+          skipCache: isRefresh 
+        }),
+        getData<ExitChecklist[]>('/checklists?limit=1&sort=created_at&order=desc', 'dashboard_checklists', { 
+          cacheTTL: 10 * 60 * 1000, // 10 minutes cache
+          skipCache: isRefresh 
+        })
       ])
 
       setCurrentBookings(bookingsResponse || [])
@@ -47,7 +58,15 @@ export default function DashboardScreen() {
       
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)
-      const errorMessage = error instanceof Error ? error.message : t('errors.networkError')
+      let errorMessage: string
+      
+      if (error instanceof Error && error.message.includes('queued')) {
+        // Operation was queued for offline sync - show different message
+        errorMessage = isOnline ? t('errors.requestQueued') : t('offline.dataUnavailableOffline')
+      } else {
+        errorMessage = error instanceof Error ? error.message : t('errors.networkError')
+      }
+      
       setError(errorMessage)
     } finally {
       setLoading(false)
@@ -309,6 +328,9 @@ export default function DashboardScreen() {
           )}
         </Card.Content>
       </Card>
+      
+      {/* Offline Indicator */}
+      <OfflineIndicator />
     </ScrollView>
   )
 }

@@ -1,0 +1,394 @@
+name: Mobile CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop, mobile-expo-app ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      deployment_target:
+        description: 'Deployment target'
+        required: true
+        default: 'preview'
+        type: choice
+        options:
+          - preview
+          - internal
+          - production
+
+env:
+  NODE_VERSION: '18'
+  EXPO_CLI_VERSION: 'latest'
+
+jobs:
+  # ============= CODE QUALITY =============
+  lint-and-typecheck:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+          
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm ci
+        
+      - name: Run TypeScript check
+        working-directory: mobile
+        run: npm run typecheck
+        
+      - name: Run ESLint
+        working-directory: mobile
+        run: npm run lint
+        
+      - name: Check for security vulnerabilities
+        working-directory: mobile
+        run: npm audit --audit-level moderate
+
+  # ============= TESTING =============
+  test-mobile:
+    name: Test Mobile App
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+          
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm ci
+        
+      - name: Run tests with coverage
+        working-directory: mobile
+        run: npm test -- --watchAll=false --coverage --coverageReporters=lcov
+        
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: mobile/coverage/lcov.info
+          flags: mobile
+          name: mobile-coverage
+
+  # ============= SECURITY SCANNING =============
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --project-name=ebs-home-mobile --file=mobile/package.json
+          
+      - name: Upload Snyk results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk.sarif
+
+  # ============= BACKEND TESTING =============
+  test-backend:
+    name: Test Backend
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+          
+      - name: Run backend tests
+        working-directory: backend
+        run: pytest --cov=src --cov-report=xml
+        
+      - name: Upload backend coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+
+  # ============= BUILD VALIDATION =============
+  build-validation:
+    name: Build Validation
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, test-mobile]
+    
+    strategy:
+      matrix:
+        environment: [development, staging, production]
+        
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+          
+      - name: Setup Expo CLI
+        run: npm install -g @expo/cli@${{ env.EXPO_CLI_VERSION }}
+        
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm ci
+        
+      - name: Create environment file
+        working-directory: mobile
+        run: |
+          cat << EOF > .env.${{ matrix.environment }}
+          EXPO_PUBLIC_API_URL=https://api-${{ matrix.environment }}.ebs-home.com
+          EXPO_PUBLIC_API_TIMEOUT=30000
+          EXPO_PUBLIC_FIREBASE_API_KEY=${{ secrets[format('FIREBASE_API_KEY_{0}', upper(matrix.environment))] }}
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=ebs-home-${{ matrix.environment }}.firebaseapp.com
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID=ebs-home-${{ matrix.environment }}
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=ebs-home-${{ matrix.environment }}.appspot.com
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets[format('FIREBASE_MESSAGING_SENDER_ID_{0}', upper(matrix.environment))] }}
+          EXPO_PUBLIC_FIREBASE_APP_ID=${{ secrets[format('FIREBASE_APP_ID_{0}', upper(matrix.environment))] }}
+          EXPO_PUBLIC_EAS_PROJECT_ID=${{ secrets.EAS_PROJECT_ID }}
+          EXPO_PUBLIC_DEBUG_MODE=${{ matrix.environment == 'development' && 'true' || 'false' }}
+          EXPO_PUBLIC_ENABLE_MOCK_DATA=${{ matrix.environment == 'development' && 'true' || 'false' }}
+          EXPO_PUBLIC_LOG_LEVEL=${{ matrix.environment == 'production' && 'warn' || 'debug' }}
+          EXPO_PUBLIC_PUSH_NOTIFICATIONS_ENABLED=true
+          EXPO_PUBLIC_ENABLE_ANALYTICS=${{ matrix.environment == 'production' && 'true' || 'false' }}
+          EXPO_PUBLIC_ENABLE_CRASH_REPORTING=${{ matrix.environment != 'development' && 'true' || 'false' }}
+          EOF
+          
+      - name: Validate build configuration
+        working-directory: mobile
+        run: |
+          NODE_ENV=${{ matrix.environment }} npx expo config --type prebuild
+          
+      - name: Run prebuild validation
+        working-directory: mobile
+        run: |
+          NODE_ENV=${{ matrix.environment }} npx expo prebuild --no-install --dry-run
+
+  # ============= EAS BUILD =============
+  eas-build:
+    name: EAS Build
+    runs-on: ubuntu-latest
+    needs: [build-validation, security-scan]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/mobile-expo-app' || github.event_name == 'workflow_dispatch'
+    
+    strategy:
+      matrix:
+        platform: [ios, android]
+        profile: [preview, production]
+        exclude:
+          - platform: ios
+            profile: preview
+        include:
+          - platform: android
+            profile: preview
+            artifact_name: 'android-preview'
+          - platform: android  
+            profile: production
+            artifact_name: 'android-production'
+          - platform: ios
+            profile: production
+            artifact_name: 'ios-production'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+          
+      - name: Setup Expo and EAS
+        run: |
+          npm install -g @expo/cli@${{ env.EXPO_CLI_VERSION }}
+          npm install -g eas-cli
+          
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm ci
+        
+      - name: Setup EAS credentials
+        working-directory: mobile
+        run: |
+          echo "${{ secrets.EAS_JSON_KEY }}" > eas-service-account.json
+          eas login --non-interactive
+          
+      - name: Build with EAS
+        working-directory: mobile
+        run: |
+          eas build \
+            --platform ${{ matrix.platform }} \
+            --profile ${{ matrix.profile }} \
+            --non-interactive \
+            --no-wait \
+            --json > build-info.json
+            
+      - name: Extract build info
+        working-directory: mobile
+        run: |
+          BUILD_ID=$(cat build-info.json | jq -r '.[0].id')
+          echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
+          echo "Build ID: $BUILD_ID"
+          
+      - name: Wait for build completion
+        working-directory: mobile
+        run: |
+          echo "Waiting for build ${{ env.BUILD_ID }} to complete..."
+          eas build:view ${{ env.BUILD_ID }} --json > final-build-info.json
+          
+      - name: Upload build artifacts info
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.artifact_name }}-build-info
+          path: mobile/final-build-info.json
+          retention-days: 30
+
+  # ============= DEPLOYMENT =============
+  deploy-preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    needs: [test-backend, eas-build]
+    if: github.ref == 'refs/heads/mobile-expo-app' && github.event_name == 'push'
+    environment: preview
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Deploy backend to preview
+        run: |
+          echo "Deploying backend to preview environment..."
+          # Add actual deployment commands here
+          
+      - name: Update Expo app
+        working-directory: mobile
+        run: |
+          npm install -g @expo/cli
+          echo "${{ secrets.EXPO_TOKEN }}" | npx expo login --non-interactive
+          npx expo publish --non-interactive
+
+  deploy-internal:
+    name: Deploy Internal
+    runs-on: ubuntu-latest  
+    needs: [test-backend, eas-build]
+    if: github.event.inputs.deployment_target == 'internal' || (github.ref == 'refs/heads/develop' && github.event_name == 'push')
+    environment: internal
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Deploy to internal environment
+        run: |
+          echo "Deploying to internal environment..."
+          # Add actual deployment commands here
+
+  deploy-production:
+    name: Deploy Production
+    runs-on: ubuntu-latest
+    needs: [test-backend, eas-build]
+    if: github.event.inputs.deployment_target == 'production' || (github.ref == 'refs/heads/main' && github.event_name == 'push')
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production environment..."
+          # Add actual deployment commands here
+          
+      - name: Create GitHub release
+        if: github.ref == 'refs/heads/main'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}
+          body: |
+            ## Release Notes
+            
+            ### Mobile App Changes
+            - Enhanced security with biometric authentication
+            - Added offline mode with data synchronization
+            - Improved camera features for maintenance photos
+            - Hebrew calendar integration
+            - Performance optimizations and lazy loading
+            
+            ### Backend Changes
+            - Enhanced API endpoints for mobile integration
+            - Improved real-time notifications
+            - Security enhancements
+            
+            ### Deployment
+            - **Frontend**: Deployed via Expo EAS Build
+            - **Backend**: Deployed to production environment
+            
+            Build artifacts and detailed logs available in the Actions tab.
+          draft: false
+          prerelease: false
+
+  # ============= NOTIFICATIONS =============
+  notify-deployment:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [deploy-preview, deploy-internal, deploy-production]
+    if: always() && (needs.deploy-preview.result != 'skipped' || needs.deploy-internal.result != 'skipped' || needs.deploy-production.result != 'skipped')
+    
+    steps:
+      - name: Notify success
+        if: |
+          needs.deploy-preview.result == 'success' || 
+          needs.deploy-internal.result == 'success' || 
+          needs.deploy-production.result == 'success'
+        run: |
+          echo "✅ Deployment successful!"
+          # Add Slack/Teams notification here
+          
+      - name: Notify failure
+        if: |
+          needs.deploy-preview.result == 'failure' || 
+          needs.deploy-internal.result == 'failure' || 
+          needs.deploy-production.result == 'failure'
+        run: |
+          echo "❌ Deployment failed!"
+          # Add Slack/Teams notification here

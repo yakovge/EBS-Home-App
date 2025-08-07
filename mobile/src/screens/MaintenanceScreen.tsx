@@ -81,8 +81,7 @@ export default function MaintenanceScreen() {
   }
 
   const handleItemPress = (request: MaintenanceRequest) => {
-    // TODO: Navigate to maintenance detail when implemented
-    console.log('Navigate to maintenance detail:', request.id)
+    navigation.navigate('MaintenanceDetail' as never, { requestId: request.id } as never)
   }
 
   const handleCreateRequest = () => {

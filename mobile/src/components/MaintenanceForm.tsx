@@ -8,12 +8,14 @@ import { View, StyleSheet, ScrollView, Alert } from 'react-native'
 import { Button, Text, Card, Menu } from 'react-native-paper'
 import { useTranslation } from 'react-i18next'
 import { useTheme } from '../contexts/ThemeContext'
-import { apiClient } from '../services/api'
+import { useOfflineContext } from '../contexts/OfflineContext'
+import { notificationService } from '../services/notifications'
 import FormField from './Forms/FormField'
 import FormSection from './Forms/FormSection'
 import PhotoUpload from './PhotoUpload'
 import LoadingSpinner from './Layout/LoadingSpinner'
 import ErrorMessage from './Layout/ErrorMessage'
+import OfflineIndicator from './Common/OfflineIndicator'
 
 interface MaintenanceFormProps {
   onSuccess?: () => void
@@ -36,6 +38,7 @@ const LOCATIONS = [
 export default function MaintenanceForm({ onSuccess, onCancel }: MaintenanceFormProps) {
   const { theme } = useTheme()
   const { t } = useTranslation()
+  const { postData, isOnline } = useOfflineContext()
   
   // Form state
   const [description, setDescription] = useState('')
@@ -69,11 +72,25 @@ export default function MaintenanceForm({ onSuccess, onCancel }: MaintenanceForm
         photo_urls: photoUrls
       }
 
-      await apiClient.post('/maintenance', maintenanceData)
+      const response = await postData('/maintenance', maintenanceData, {
+        priority: 'high' // Maintenance requests are high priority
+      })
+      
+      // Schedule local notification for confirmation
+      await notificationService.scheduleMaintenanceNotification(
+        response?.id || 'new-request',
+        'Maintenance Request Submitted',
+        `Your request for "${description.trim()}" has been ${isOnline ? 'submitted' : 'queued for sync'} and will be reviewed by the maintenance team.`,
+        2 // 2 seconds delay
+      )
+      
+      const successMessage = isOnline ? 
+        t('maintenance.requestSubmitted') : 
+        t('maintenance.requestQueued')
       
       Alert.alert(
         t('common.success'),
-        t('maintenance.requestSubmitted'),
+        successMessage,
         [
           {
             text: t('common.confirm'),
@@ -84,8 +101,28 @@ export default function MaintenanceForm({ onSuccess, onCancel }: MaintenanceForm
       
     } catch (error) {
       console.error('Failed to create maintenance request:', error)
-      const errorMessage = error instanceof Error ? error.message : t('errors.serverError')
-      setError(errorMessage)
+      
+      let errorMessage: string
+      if (error instanceof Error && error.message.includes('queued')) {
+        // Operation was queued for offline sync
+        errorMessage = t('maintenance.requestQueued')
+        
+        // Still show success since it was queued
+        Alert.alert(
+          t('common.success'),
+          errorMessage,
+          [
+            {
+              text: t('common.confirm'),
+              onPress: () => onSuccess?.()
+            }
+          ]
+        )
+        return
+      } else {
+        errorMessage = error instanceof Error ? error.message : t('errors.serverError')
+        setError(errorMessage)
+      }
     } finally {
       setLoading(false)
     }
@@ -252,6 +289,9 @@ export default function MaintenanceForm({ onSuccess, onCancel }: MaintenanceForm
           {t('maintenance.createRequest')}
         </Button>
       </View>
+      
+      {/* Offline Indicator */}
+      <OfflineIndicator position="bottom" />
     </ScrollView>
   )
 }

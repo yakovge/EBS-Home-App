@@ -9,6 +9,7 @@ import { Button, Text, Card, Chip } from 'react-native-paper'
 import { useTranslation } from 'react-i18next'
 import { useTheme } from '../contexts/ThemeContext'
 import { apiClient } from '../services/api'
+import { notificationService } from '../services/notifications'
 import { PhotoType } from '../types'
 import FormField from './Forms/FormField'
 import FormSection from './Forms/FormSection'
@@ -109,7 +110,15 @@ export default function ChecklistForm({ onSuccess, onCancel, bookingId }: Checkl
         important_notes: importantNotes.trim(),
       }
 
-      await apiClient.post('/checklists', checklistData)
+      const response = await apiClient.post('/checklists', checklistData)
+      
+      // Send notification about checklist completion
+      await notificationService.scheduleChecklistReminder(
+        bookingId || 'completed',
+        'Exit Checklist Completed',
+        'Your exit checklist has been submitted successfully. Thank you for helping maintain the house!',
+        new Date(Date.now() + 2000) // 2 seconds delay
+      )
       
       Alert.alert(
         t('common.success'),

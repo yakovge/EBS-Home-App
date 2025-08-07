@@ -12,9 +12,11 @@ import { useTheme } from '../contexts/ThemeContext'
 import { useTranslation } from 'react-i18next'
 import { apiClient } from '../services/api'
 import { Booking } from '../types'
+import { hebrewCalendarService } from '../services/hebrewCalendarService'
 import LoadingSpinner from '../components/Layout/LoadingSpinner'
 import ErrorMessage from '../components/Layout/ErrorMessage'
 import EmptyState from '../components/Layout/EmptyState'
+import HebrewCalendarWidget from '../components/Calendar/HebrewCalendarWidget'
 
 export default function BookingScreen() {
   const { theme } = useTheme()
@@ -68,6 +70,14 @@ export default function BookingScreen() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString()
+  }
+
+  const formatDateWithHebrew = (dateString: string) => {
+    const date = new Date(dateString)
+    const hebrewDate = hebrewCalendarService.convertToHebrewDate(date)
+    const gregorianFormatted = date.toLocaleDateString()
+    const hebrewFormatted = hebrewDate.hebrewDate
+    return `${gregorianFormatted} (${hebrewFormatted})`
   }
 
   const getStatusColor = (booking: Booking) => {
@@ -255,6 +265,16 @@ export default function BookingScreen() {
         />
       )}
 
+      {/* Hebrew Calendar Widget */}
+      <View style={styles.hebrewCalendarContainer}>
+        <HebrewCalendarWidget 
+          compact={true}
+          showUpcoming={true}
+          showZmanim={false}
+          showParsha={true}
+        />
+      </View>
+
       {/* Calendar */}
       <Card style={styles.calendarCard}>
         <Card.Content>
@@ -400,7 +420,7 @@ export default function BookingScreen() {
                       {booking.user_name}
                     </Text>
                     <Text variant="bodySmall" style={[styles.bookingDates, { color: theme.colors.onSurfaceVariant }]}>
-                      {formatDate(booking.start_date)} - {formatDate(booking.end_date)}
+                      {formatDateWithHebrew(booking.start_date)} - {formatDateWithHebrew(booking.end_date)}
                     </Text>
                   </View>
                   
@@ -598,5 +618,9 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     minWidth: 60,
+  },
+  hebrewCalendarContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 8,
   },
 })
