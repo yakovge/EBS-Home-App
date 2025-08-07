@@ -5,6 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Config } from '../config';
+import { performanceService } from './performanceService';
 
 interface RequestConfig {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -331,10 +332,31 @@ class ApiClient {
       headers['Content-Type'] = 'application/json';
     }
 
+    // Track network performance
+    const startTime = performance.now();
+    let responseSize = 0;
+    
     try {
       const response = await fetch(url, {
         ...config,
         headers,
+      });
+
+      // Calculate response size (approximate)
+      const contentLength = response.headers?.get('content-length');
+      if (contentLength) {
+        responseSize = parseInt(contentLength, 10);
+      }
+
+      // Track network request
+      const duration = performance.now() - startTime;
+      performanceService.trackNetworkRequest({
+        url: endpoint,
+        method: config.method || 'GET',
+        duration,
+        size: responseSize,
+        status: response.status,
+        cacheHit: response.headers?.get('x-cache') === 'HIT',
       });
 
       // Handle authentication errors

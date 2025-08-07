@@ -10,6 +10,8 @@ import { User } from '../types'
 import { authService } from '../services/authService'
 import { notificationService } from '../services/notificationService'
 import { webSocketService } from '../services/websocketService'
+import { biometricAuthService } from '../services/biometricAuthService'
+import { securityService } from '../services/securityService'
 import { Config } from '../config'
 
 interface AuthContextType {
@@ -73,9 +75,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return
       }
 
+      // Check if biometric authentication is enabled and required
+      const isBiometricEnabled = await biometricAuthService.isBiometricEnabled()
+      if (isBiometricEnabled) {
+        const biometricResult = await biometricAuthService.authenticate('Access your EBS Home account')
+        if (!biometricResult.success) {
+          // Biometric authentication failed - require full login
+          console.log('Biometric authentication failed, requiring full login')
+          await AsyncStorage.removeItem('session_token')
+          setUser(null)
+          setLoading(false)
+          return
+        }
+      }
+      
       const response = await authService.verifySession(token)
       if (response.valid && response.user) {
         setUser(response.user)
+        
+        // Track successful session restoration (skip in test environment)
+        if (process.env.NODE_ENV !== 'test') {
+          try {
+            await securityService.logSecurityEvent({
+              type: 'session_restored',
+              userId: response.user.id,
+              metadata: { biometricUsed: isBiometricEnabled }
+            })
+          } catch (error) {
+            console.warn('Failed to log security event:', error)
+          }
+        }
         
         // Initialize push notifications for existing session
         try {

@@ -15,6 +15,7 @@ import { Booking, MaintenanceRequest, ExitChecklist } from '../types'
 import LoadingSpinner from '../components/Layout/LoadingSpinner'
 import ErrorMessage from '../components/Layout/ErrorMessage'
 import OfflineIndicator from '../components/Common/OfflineIndicator'
+import { usePerformanceTracking, useAsyncPerformance } from '../hooks/usePerformanceTracking'
 
 export default function DashboardScreen() {
   const { theme } = useTheme()
@@ -22,6 +23,10 @@ export default function DashboardScreen() {
   const { user } = useAuthContext()
   const { getData, isOnline } = useOfflineContext()
   const navigation = useNavigation()
+  const { measure } = useAsyncPerformance()
+  
+  // Track component performance
+  usePerformanceTracking('DashboardScreen')
   
   // State
   const [loading, setLoading] = useState(true)
@@ -36,25 +41,28 @@ export default function DashboardScreen() {
       if (!isRefresh) setLoading(true)
       setError('')
 
-      // Fetch current bookings, pending maintenance, and recent checklists in parallel
-      const [bookingsResponse, maintenanceResponse, checklistsResponse] = await Promise.all([
-        getData<Booking[]>('/bookings?status=active', 'dashboard_bookings', { 
-          cacheTTL: 5 * 60 * 1000, // 5 minutes cache
-          skipCache: isRefresh 
-        }),
-        getData<MaintenanceRequest[]>('/maintenance?status=pending&limit=5', 'dashboard_maintenance', { 
-          cacheTTL: 3 * 60 * 1000, // 3 minutes cache
-          skipCache: isRefresh 
-        }),
-        getData<ExitChecklist[]>('/checklists?limit=1&sort=created_at&order=desc', 'dashboard_checklists', { 
-          cacheTTL: 10 * 60 * 1000, // 10 minutes cache
-          skipCache: isRefresh 
-        })
-      ])
+      // Track data fetching performance
+      await measure('dashboard_data_fetch', async () => {
+        // Fetch current bookings, pending maintenance, and recent checklists in parallel
+        const [bookingsResponse, maintenanceResponse, checklistsResponse] = await Promise.all([
+          getData<Booking[]>('/bookings?status=active', 'dashboard_bookings', { 
+            cacheTTL: 5 * 60 * 1000, // 5 minutes cache
+            skipCache: isRefresh 
+          }),
+          getData<MaintenanceRequest[]>('/maintenance?status=pending&limit=5', 'dashboard_maintenance', { 
+            cacheTTL: 3 * 60 * 1000, // 3 minutes cache
+            skipCache: isRefresh 
+          }),
+          getData<ExitChecklist[]>('/checklists?limit=1&sort=created_at&order=desc', 'dashboard_checklists', { 
+            cacheTTL: 10 * 60 * 1000, // 10 minutes cache
+            skipCache: isRefresh 
+          })
+        ])
 
-      setCurrentBookings(bookingsResponse || [])
-      setPendingMaintenance(maintenanceResponse || [])
-      setRecentChecklists(checklistsResponse || [])
+        setCurrentBookings(bookingsResponse || [])
+        setPendingMaintenance(maintenanceResponse || [])
+        setRecentChecklists(checklistsResponse || [])
+      }, { isRefresh })
       
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)

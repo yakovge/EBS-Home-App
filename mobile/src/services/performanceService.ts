@@ -106,6 +106,11 @@ class PerformanceService {
    */
   private startMemoryMonitoring(): void {
     try {
+      // Don't start memory monitoring in test environment
+      if (process.env.NODE_ENV === 'test') {
+        return;
+      }
+      
       this.memoryMonitorInterval = setInterval(() => {
         this.recordMemoryUsage();
       }, 30000); // Every 30 seconds
@@ -260,6 +265,11 @@ class PerformanceService {
    */
   private measureAppStartup(): void {
     try {
+      // Don't measure app startup in test environment
+      if (process.env.NODE_ENV === 'test') {
+        return;
+      }
+      
       const startTime = Date.now();
       
       // Measure when the app becomes interactive

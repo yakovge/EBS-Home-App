@@ -383,7 +383,7 @@ class SecurityService {
     event: Omit<SecurityEvent, 'id' | 'timestamp' | 'handled'>
   ): Promise<void> {
     const securityEvent: SecurityEvent = {
-      id: await Crypto.randomUUID(),
+      id: await this.generateId(),
       timestamp: Date.now(),
       handled: false,
       ...event,
@@ -532,6 +532,23 @@ class SecurityService {
     ]);
     
     console.log('🗑️ Security data cleared');
+  }
+
+  /**
+   * Generate a unique ID for security events
+   */
+  private async generateId(): Promise<string> {
+    try {
+      // Try using Crypto.randomUUID if available
+      if (Crypto && Crypto.randomUUID) {
+        return await Crypto.randomUUID();
+      }
+    } catch (error) {
+      // Fallback for environments where Crypto.randomUUID is not available
+    }
+    
+    // Fallback to timestamp + random string
+    return `sec_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
   }
 
   /**
