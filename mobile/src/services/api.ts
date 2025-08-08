@@ -308,13 +308,8 @@ class ApiClient {
     endpoint: string, 
     config: RequestConfig
   ): Promise<T> {
-    // Check if we're in demo mode
-    const isDemo = await this.isDemoMode();
-    
-    if (isDemo) {
-      // Return mock data for demo mode
-      return this.getMockResponse<T>(endpoint, config.method);
-    }
+    // Note: Demo mode bypass removed - always use real API calls
+    // The demo mode detection is kept for potential future debugging but bypassed
     
     const url = `${this.baseURL}${endpoint}`;
     
@@ -337,10 +332,17 @@ class ApiClient {
     let responseSize = 0;
     
     try {
+      // Add timeout to the fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), Config.API_TIMEOUT);
+      
       const response = await fetch(url, {
         ...config,
         headers,
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       // Calculate response size (approximate)
       const contentLength = response.headers?.get('content-length');
@@ -374,7 +376,34 @@ class ApiClient {
 
       return await response.json();
     } catch (error) {
+      // Track failed network request
+      const duration = performance.now() - startTime;
+      
       if (error instanceof Error) {
+        // Handle specific error types
+        if (error.name === 'AbortError') {
+          performanceService.trackNetworkRequest({
+            url: endpoint,
+            method: config.method || 'GET',
+            duration,
+            size: 0,
+            status: 0,
+            cacheHit: false,
+            error: 'timeout'
+          });
+          throw new Error(`Request timeout after ${Config.API_TIMEOUT}ms`);
+        }
+        
+        performanceService.trackNetworkRequest({
+          url: endpoint,
+          method: config.method || 'GET',
+          duration,
+          size: 0,
+          status: 0,
+          cacheHit: false,
+          error: error.message
+        });
+        
         throw error;
       }
       throw new Error('Network request failed');
@@ -412,6 +441,10 @@ class ApiClient {
 
   async delete<T>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, { method: 'DELETE' });
+  }
+
+  async deleteBooking(bookingId: string): Promise<{ message: string; booking: any }> {
+    return this.delete<{ message: string; booking: any }>(`/bookings/${bookingId}`);
   }
 
   async upload<T>(

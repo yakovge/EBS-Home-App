@@ -70,39 +70,80 @@ class HebrewCalendarService {
   private cachedEvents: Map<string, Event[]> = new Map();
   
   constructor() {
-    // Default location: Bat Shlomo, Israel
-    this.DEFAULT_LOCATION = new Location(
-      32.7167, // latitude
-      35.0167, // longitude  
-      0,       // elevation
-      'Asia/Jerusalem',
-      'Bat Shlomo',
-      'IL'
-    );
+    // Default location: Jerusalem, Israel (safest approach using only Location.lookup)
+    try {
+      // Try Jerusalem first (most likely to work)
+      let location = Location.lookup('Jerusalem');
+      if (location) {
+        this.DEFAULT_LOCATION = location;
+        console.log('✅ Hebrew calendar using Jerusalem location');
+        return;
+      }
+
+      // Try other Israeli cities
+      const israeliCities = ['Tel Aviv', 'Haifa', 'Beer Sheva', 'Netanya'];
+      for (const city of israeliCities) {
+        location = Location.lookup(city);
+        if (location) {
+          this.DEFAULT_LOCATION = location;
+          console.log(`✅ Hebrew calendar using ${city} location`);
+          return;
+        }
+      }
+
+      // If no Israeli city works, disable location-dependent features
+      console.warn('⚠️ No Israeli location found, Hebrew calendar will work without location-specific features');
+      this.DEFAULT_LOCATION = null as any;
+
+    } catch (error) {
+      console.error('❌ Hebrew calendar Location.lookup failed:', error);
+      this.DEFAULT_LOCATION = null as any;
+    }
   }
 
   /**
    * Convert Gregorian date to Hebrew date with full information
    */
   convertToHebrewDate(date: Date, language: 'en' | 'he' = 'en'): HebrewDate {
-    const hd = new HDate(date);
-    const greg = hd.greg();
+    try {
+      const hd = new HDate(date);
+      const greg = hd.greg();
     
-    return {
-      hebrewDate: hd.toString(language),
-      hebrewDateHeb: hd.toString('he'),
-      gregorianDate: greg.toLocaleDateString('en-US'),
-      dayOfWeek: greg.toLocaleDateString('en-US', { weekday: 'long' }),
-      dayOfWeekHeb: hd.toString('he').split(' ')[0], // Extract day from Hebrew string
-      month: hd.getMonthName('en'),
-      monthHeb: hd.getMonthName('he'),
-      year: greg.getFullYear(),
-      hebrewYear: hd.getFullYear(),
-      isLeapYear: hd.isLeapYear(),
-      dayOfYear: this.getDayOfYear(greg),
-      weekOfYear: this.getWeekOfYear(greg),
-      roshHashanaDay: hd.roshHashanaDay(),
-    };
+      return {
+        hebrewDate: hd.toString(language),
+        hebrewDateHeb: hd.toString('he'),
+        gregorianDate: greg.toLocaleDateString('en-US'),
+        dayOfWeek: greg.toLocaleDateString('en-US', { weekday: 'long' }),
+        dayOfWeekHeb: hd.toString('he').split(' ')[0], // Extract day from Hebrew string
+        month: hd.getMonthName('en'),
+        monthHeb: hd.getMonthName('he'),
+        year: greg.getFullYear(),
+        hebrewYear: hd.getFullYear(),
+        isLeapYear: hd.isLeapYear(),
+        dayOfYear: this.getDayOfYear(greg),
+        weekOfYear: this.getWeekOfYear(greg),
+        roshHashanaDay: this.getRoshHashanaDayOfWeek(hd.getFullYear()),
+      };
+    } catch (error) {
+      console.error('Failed to convert Hebrew date:', error);
+      // Return fallback Hebrew date info
+      const fallbackDate = date || new Date();
+      return {
+        hebrewDate: fallbackDate.toLocaleDateString(),
+        hebrewDateHeb: fallbackDate.toLocaleDateString(),
+        gregorianDate: fallbackDate.toLocaleDateString('en-US'),
+        dayOfWeek: fallbackDate.toLocaleDateString('en-US', { weekday: 'long' }),
+        dayOfWeekHeb: 'יום',
+        month: fallbackDate.toLocaleDateString('en-US', { month: 'long' }),
+        monthHeb: 'חודש',
+        year: fallbackDate.getFullYear(),
+        hebrewYear: fallbackDate.getFullYear() + 3760, // Approximate Hebrew year
+        isLeapYear: false,
+        dayOfYear: this.getDayOfYear(fallbackDate),
+        weekOfYear: this.getWeekOfYear(fallbackDate),
+        roshHashanaDay: 0,
+      };
+    }
   }
 
   /**
@@ -122,9 +163,9 @@ class HebrewCalendarService {
     const calOptions = {
       start: startDate,
       end: endDate,
-      location: options.location || this.DEFAULT_LOCATION,
-      candlelighting: options.candlelighting ?? true,
-      havdalah: options.havdalah ?? true,
+      ...(options.location || this.DEFAULT_LOCATION ? { location: options.location || this.DEFAULT_LOCATION } : {}),
+      candlelighting: options.candlelighting ?? (this.DEFAULT_LOCATION ? true : false),
+      havdalah: options.havdalah ?? (this.DEFAULT_LOCATION ? true : false),
       sedrot: options.sedrot ?? true,
       dafyomi: options.dafyomi ?? false,
       omer: options.omer ?? true,
@@ -135,10 +176,15 @@ class HebrewCalendarService {
       locale: options.language || 'en',
     };
 
-    const events = HebrewCalendar.calendar(calOptions);
-    this.cachedEvents.set(cacheKey, events);
-    
-    return this.convertEventsToHolidays(events);
+    try {
+      const events = HebrewCalendar.calendar(calOptions);
+      this.cachedEvents.set(cacheKey, events);
+      return this.convertEventsToHolidays(events);
+    } catch (error) {
+      console.warn('Hebrew calendar failed to get events:', error);
+      // Return empty array instead of crashing
+      return [];
+    }
   }
 
   /**
@@ -149,20 +195,52 @@ class HebrewCalendarService {
     holidays: HebrewHoliday[];
     zmanim?: ZmanimTimes;
   } {
-    const today = new Date();
-    const hebrewDate = this.convertToHebrewDate(today, options.language);
-    const holidays = this.getHolidays(today, today, options);
-    
-    let zmanim: ZmanimTimes | undefined;
-    if (options.location || options.candlelighting || options.havdalah) {
-      zmanim = this.getZmanim(today, options.location);
+    try {
+      const today = new Date();
+      console.log('🔍 Hebrew service: Converting today date...', today);
+      
+      const hebrewDate = this.convertToHebrewDate(today, options.language);
+      console.log('✅ Hebrew date converted:', hebrewDate.hebrewDate);
+      
+      console.log('🔍 Hebrew service: Getting holidays...');
+      const holidays = this.getHolidays(today, today, options);
+      console.log('✅ Holidays loaded:', holidays.length);
+      
+      let zmanim: ZmanimTimes | undefined;
+      if (options.location || options.candlelighting || options.havdalah) {
+        console.log('🔍 Hebrew service: Getting Zmanim...');
+        zmanim = this.getZmanim(today, options.location);
+        console.log('✅ Zmanim loaded');
+      }
+      
+      return {
+        hebrewDate,
+        holidays,
+        zmanim,
+      };
+    } catch (error) {
+      console.error('❌ getToday failed:', error);
+      // Return minimal fallback data
+      const today = new Date();
+      return {
+        hebrewDate: {
+          hebrewDate: today.toLocaleDateString(),
+          hebrewDateHeb: today.toLocaleDateString(),
+          gregorianDate: today.toLocaleDateString(),
+          dayOfWeek: today.toLocaleDateString('en-US', { weekday: 'long' }),
+          dayOfWeekHeb: 'יום',
+          month: today.toLocaleDateString('en-US', { month: 'long' }),
+          monthHeb: 'חודש', 
+          year: today.getFullYear(),
+          hebrewYear: today.getFullYear() + 3760,
+          isLeapYear: false,
+          dayOfYear: 1,
+          weekOfYear: 1,
+          roshHashanaDay: 0,
+        },
+        holidays: [],
+      };
     }
-    
-    return {
-      hebrewDate,
-      holidays,
-      zmanim,
-    };
   }
 
   /**
@@ -183,6 +261,20 @@ class HebrewCalendarService {
    */
   getZmanim(date: Date, location?: Location): ZmanimTimes {
     const loc = location || this.DEFAULT_LOCATION;
+    if (!loc) {
+      // Return empty zmanim if no location available
+      return {
+        dawn: null,
+        sunrise: null,
+        sunriseGRA: null,
+        sunset: null,
+        dusk: null,
+        chatzot: null,
+        candlelighting: null,
+        havdalah: null,
+        location: undefined,
+      };
+    }
     const zmanim = new Zmanim(date, loc);
     
     return {
@@ -223,6 +315,33 @@ class HebrewCalendarService {
     parshaHeb?: string;
   } {
     const loc = location || this.DEFAULT_LOCATION;
+    
+    if (!loc) {
+      // Without location, we can still get parsha but not times
+      try {
+        const events = HebrewCalendar.calendar({
+          start: date,
+          end: date,
+          sedrot: true,
+          locale: 'en',
+        });
+        
+        const parshaEvent = events.find(e => e.getFlags() & Event.PARSHA_HASHAVUA);
+        
+        return {
+          candlelighting: null,
+          havdalah: null,
+          parsha: parshaEvent?.render('en'),
+          parshaHeb: parshaEvent?.render('he'),
+        };
+      } catch (error) {
+        console.warn('Failed to get Shabbat parsha:', error);
+        return {
+          candlelighting: null,
+          havdalah: null,
+        };
+      }
+    }
     
     // Find Friday and Saturday of this week
     const dayOfWeek = date.getDay();
@@ -369,8 +488,8 @@ class HebrewCalendarService {
         yomTov: !!(flags & Event.YOM_TOV_ENDS),
         chag: !!(flags & Event.CHAG),
         isMinor: !!(flags & Event.MINOR_HOLIDAY),
-        chanukahDay: event.chanukahDay?.(),
-        omerCount: event.omerCount?.(),
+        chanukahDay: typeof event.chanukahDay === 'function' ? event.chanukahDay() : undefined,
+        omerCount: typeof event.omerCount === 'function' ? event.omerCount() : undefined,
       };
     });
   }
@@ -385,6 +504,17 @@ class HebrewCalendarService {
     const firstDay = new Date(date.getFullYear(), 0, 1);
     const dayOfYear = this.getDayOfYear(date);
     return Math.ceil(dayOfYear / 7);
+  }
+
+  private getRoshHashanaDayOfWeek(hebrewYear: number): number {
+    try {
+      // Create Rosh Hashana date for the given Hebrew year
+      const roshHashana = new HDate(1, 'Tishrei', hebrewYear);
+      return roshHashana.greg().getDay(); // 0=Sunday, 1=Monday, etc.
+    } catch (error) {
+      console.warn('Could not calculate Rosh Hashana day of week:', error);
+      return 0; // Default to Sunday
+    }
   }
 
   private getHolidayInfo(name: string): any {

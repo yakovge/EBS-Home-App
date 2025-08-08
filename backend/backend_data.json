@@ -1,0 +1,21 @@
+{
+  "maintenance": [],
+  "bookings": [],
+  "checklists": [],
+  "users": {
+    "test_user_123": {
+      "id": "test_user_123",
+      "name": "Test User",
+      "email": "test@eisenberg.family",
+      "role": "family_member",
+      "preferredLanguage": "en",
+      "isActive": true,
+      "deviceHistory": [],
+      "firebaseUid": "test_firebase_uid",
+      "isYaffa": false,
+      "isMaintenancePerson": false,
+      "createdAt": "2025-08-08T13:53:19.028982",
+      "updatedAt": "2025-08-08T13:53:19.028982"
+    }
+  }
+}

@@ -3,20 +3,18 @@
  * Displays calendar view and booking list with navigation options.
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { View, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native'
 import { Card, Text, Chip, Button, TextInput } from 'react-native-paper'
 import { Calendar } from 'react-native-calendars'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { useTheme } from '../contexts/ThemeContext'
 import { useTranslation } from 'react-i18next'
 import { apiClient } from '../services/api'
 import { Booking } from '../types'
-import { hebrewCalendarService } from '../services/hebrewCalendarService'
 import LoadingSpinner from '../components/Layout/LoadingSpinner'
 import ErrorMessage from '../components/Layout/ErrorMessage'
 import EmptyState from '../components/Layout/EmptyState'
-import HebrewCalendarWidget from '../components/Calendar/HebrewCalendarWidget'
 
 export default function BookingScreen() {
   const { theme } = useTheme()
@@ -34,6 +32,8 @@ export default function BookingScreen() {
   const [showQuickBookButton, setShowQuickBookButton] = useState(false)
   const [quickBookingGuestName, setQuickBookingGuestName] = useState('')
   const [quickBookingLoading, setQuickBookingLoading] = useState(false)
+  const [cancellingBookingId, setCancellingBookingId] = useState<string | null>(null)
+  const [calendarKey, setCalendarKey] = useState(0)
 
   const fetchBookings = async (isRefresh = false) => {
     try {
@@ -63,6 +63,16 @@ export default function BookingScreen() {
     fetchBookings()
   }, [])
 
+  // Refresh bookings when screen comes back into focus (after creating a booking)
+  useFocusEffect(
+    useCallback(() => {
+      // Only refresh if we already have data loaded (not on initial load)
+      if (bookings.length > 0 || !loading) {
+        fetchBookings(true)
+      }
+    }, [bookings.length, loading])
+  )
+
   const handleRefresh = () => {
     setRefreshing(true)
     fetchBookings(true)
@@ -72,13 +82,6 @@ export default function BookingScreen() {
     return new Date(dateString).toLocaleDateString()
   }
 
-  const formatDateWithHebrew = (dateString: string) => {
-    const date = new Date(dateString)
-    const hebrewDate = hebrewCalendarService.convertToHebrewDate(date)
-    const gregorianFormatted = date.toLocaleDateString()
-    const hebrewFormatted = hebrewDate.hebrewDate
-    return `${gregorianFormatted} (${hebrewFormatted})`
-  }
 
   const getStatusColor = (booking: Booking) => {
     if (booking.is_cancelled) return theme.colors.error
@@ -155,13 +158,13 @@ export default function BookingScreen() {
       const startDate = new Date(quickBookingStart)
       const endDate = new Date(dateString)
       
-      if (endDate <= startDate) {
-        // If second date is before or same as first, reset and start over
+      if (endDate < startDate) {
+        // If second date is before first, reset and start over
         setQuickBookingStart(dateString)
         setQuickBookingEnd('')
         setShowQuickBookButton(false)
       } else {
-        // Valid range selected
+        // Valid range selected (including same day)
         setQuickBookingEnd(dateString)
         setShowQuickBookButton(true)
       }
@@ -218,6 +221,53 @@ export default function BookingScreen() {
     setQuickBookingGuestName('')
   }
 
+  const goToCurrentMonth = () => {
+    const today = new Date().toISOString().split('T')[0]
+    setSelectedDate(today)
+    
+    // Force calendar to re-render with today's date as initial date
+    setCalendarKey(prev => prev + 1)
+  }
+
+  const handleCancelBooking = async (booking: Booking) => {
+    Alert.alert(
+      'Cancel Booking',
+      `Are you sure you want to cancel the booking for ${booking.guest_name}?\n\nDates: ${formatDate(booking.start_date)} - ${formatDate(booking.end_date)}`,
+      [
+        { text: 'Keep Booking', style: 'cancel' },
+        { 
+          text: 'Cancel Booking', 
+          style: 'destructive',
+          onPress: () => confirmCancelBooking(booking)
+        }
+      ]
+    )
+  }
+
+  const confirmCancelBooking = async (booking: Booking) => {
+    try {
+      setCancellingBookingId(booking.id)
+      
+      await apiClient.deleteBooking(booking.id)
+      
+      // Refresh bookings list
+      fetchBookings(true)
+      
+      Alert.alert(
+        'Booking Cancelled',
+        `The booking for ${booking.guest_name} has been cancelled successfully.`,
+        [{ text: 'OK' }]
+      )
+      
+    } catch (error) {
+      console.error('Failed to cancel booking:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to cancel booking'
+      Alert.alert('Error', errorMessage)
+    } finally {
+      setCancellingBookingId(null)
+    }
+  }
+
   const getDateRange = (startDate: string, endDate: string) => {
     const range: any = {}
     const start = new Date(startDate)
@@ -265,24 +315,28 @@ export default function BookingScreen() {
         />
       )}
 
-      {/* Hebrew Calendar Widget */}
-      <View style={styles.hebrewCalendarContainer}>
-        <HebrewCalendarWidget 
-          compact={true}
-          showUpcoming={true}
-          showZmanim={false}
-          showParsha={true}
-        />
-      </View>
 
       {/* Calendar */}
       <Card style={styles.calendarCard}>
         <Card.Content>
-          <Text variant="titleLarge" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-            Booking Calendar
-          </Text>
+          <View style={styles.calendarHeader}>
+            <Text variant="titleLarge" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+              Booking Calendar
+            </Text>
+            <Button
+              mode="outlined"
+              onPress={goToCurrentMonth}
+              icon="calendar-today"
+              compact
+              style={styles.todayButton}
+            >
+              Today
+            </Button>
+          </View>
           
           <Calendar
+            key={calendarKey}
+            current={new Date().toISOString().split('T')[0]}
             onDayPress={handleDayPress}
             markedDates={{
               ...markedDates,
@@ -417,10 +471,10 @@ export default function BookingScreen() {
                 <View style={styles.bookingHeader}>
                   <View style={styles.bookingInfo}>
                     <Text variant="titleMedium" style={[styles.bookingTitle, { color: theme.colors.onSurface }]}>
-                      {booking.user_name}
+                      {booking.guest_name}
                     </Text>
                     <Text variant="bodySmall" style={[styles.bookingDates, { color: theme.colors.onSurfaceVariant }]}>
-                      {formatDateWithHebrew(booking.start_date)} - {formatDateWithHebrew(booking.end_date)}
+                      {formatDate(booking.start_date)} - {formatDate(booking.end_date)}
                     </Text>
                   </View>
                   
@@ -441,26 +495,43 @@ export default function BookingScreen() {
                 )}
 
                 <View style={styles.bookingFooter}>
-                  {booking.exit_checklist_completed ? (
-                    <Chip 
-                      icon="check-circle" 
-                      mode="flat"
-                      style={[styles.checklistChip, { backgroundColor: theme.colors.secondary + '20' }]}
-                      textStyle={{ color: theme.colors.secondary }}
+                  <View style={styles.checklistSection}>
+                    {booking.exit_checklist_completed ? (
+                      <Chip 
+                        icon="check-circle" 
+                        mode="flat"
+                        style={[styles.checklistChip, { backgroundColor: theme.colors.secondary + '20' }]}
+                        textStyle={{ color: theme.colors.secondary }}
+                        compact
+                      >
+                        Exit checklist completed
+                      </Chip>
+                    ) : (
+                      <Chip 
+                        icon="alert-circle" 
+                        mode="flat"
+                        style={[styles.checklistChip, { backgroundColor: theme.colors.tertiary + '20' }]}
+                        textStyle={{ color: theme.colors.tertiary }}
+                        compact
+                      >
+                        {t('booking.exitChecklistRequired')}
+                      </Chip>
+                    )}
+                  </View>
+                  
+                  {!booking.is_cancelled && (
+                    <Button
+                      mode="outlined"
+                      icon="close"
+                      onPress={() => handleCancelBooking(booking)}
+                      style={[styles.cancelButton, { borderColor: theme.colors.error }]}
+                      textColor={theme.colors.error}
+                      loading={cancellingBookingId === booking.id}
+                      disabled={cancellingBookingId !== null}
                       compact
                     >
-                      Exit checklist completed
-                    </Chip>
-                  ) : (
-                    <Chip 
-                      icon="alert-circle" 
-                      mode="flat"
-                      style={[styles.checklistChip, { backgroundColor: theme.colors.tertiary + '20' }]}
-                      textStyle={{ color: theme.colors.tertiary }}
-                      compact
-                    >
-                      {t('booking.exitChecklistRequired')}
-                    </Chip>
+                      Cancel
+                    </Button>
                   )}
                 </View>
               </View>
@@ -504,8 +575,17 @@ const styles = StyleSheet.create({
     margin: 16,
     marginBottom: 8,
   },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  todayButton: {
+    minWidth: 70,
+  },
   calendar: {
-    marginTop: 12,
+    marginTop: 0,
   },
   listCard: {
     margin: 16,
@@ -560,7 +640,14 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   bookingFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginTop: 8,
+    minHeight: 40,
+  },
+  checklistSection: {
+    flex: 1,
   },
   checklistChip: {
     height: 32,
@@ -619,8 +706,9 @@ const styles = StyleSheet.create({
   clearButton: {
     minWidth: 60,
   },
-  hebrewCalendarContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 8,
+  cancelButton: {
+    minWidth: 80,
+    minHeight: 36,
+    alignSelf: 'flex-start',
   },
 })

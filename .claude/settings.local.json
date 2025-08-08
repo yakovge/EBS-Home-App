@@ -45,7 +45,18 @@
       "Bash(npx expo start:*)",
       "Bash(npx expo config:*)",
       "Bash(mv:*)",
-      "Bash(npx jest:*)"
+      "Bash(npx jest:*)",
+      "Bash(source:*)",
+      "Bash(/dev/null)",
+      "Bash(pkill:*)",
+      "Bash(taskkill:*)",
+      "Bash(cat:*)",
+      "Bash(tasklist:*)",
+      "Bash(TASKKILL /F /IM python.exe)",
+      "Bash(\"C:\\Windows\\System32\\taskkill.exe\" /F /PID 18492)",
+      "Bash(powershell:*)",
+      "Bash(start /B python:*)",
+      "Bash(del clean_test_data.py)"
     ],
     "deny": []
   }

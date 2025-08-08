@@ -20,6 +20,7 @@ interface AuthContextType {
   login: (token: string, deviceInfo?: { deviceId: string; deviceName: string; platform: string }) => Promise<void>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
+  clearDemoSession: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -53,8 +54,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return
       }
 
-      // Check if this is a demo session
-      if (token === Config.DEMO_TOKEN) {
+      // Check if this is a demo session - only allow in development
+      if (token === Config.DEMO_TOKEN && __DEV__) {
         // Demo mode - create demo user without backend call
         const demoUser: User = {
           id: 'demo_user_123',
@@ -260,12 +261,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
+  const clearDemoSession = async () => {
+    try {
+      await AsyncStorage.removeItem('session_token')
+      setUser(null)
+      console.log('Demo session cleared - app will show login screen')
+    } catch (error) {
+      console.error('Failed to clear demo session:', error)
+    }
+  }
+
   const value: AuthContextType = {
     user,
     loading,
     login,
     logout,
     refreshUser,
+    clearDemoSession,
   }
 
   return (

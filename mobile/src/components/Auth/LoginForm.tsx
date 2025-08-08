@@ -18,7 +18,7 @@ import DemoLoginButton from './DemoLoginButton'
 export default function LoginForm() {
   const { theme } = useTheme()
   const { t } = useTranslation()
-  const { login } = useAuthContext()
+  const { login, clearDemoSession } = useAuthContext()
   const [token, setToken] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -90,6 +90,15 @@ export default function LoginForm() {
           
           {/* Demo and Google Sign-In Options */}
           <DemoLoginButton />
+          <Button
+            mode="text"
+            onPress={clearDemoSession}
+            icon="logout"
+            style={{ marginBottom: 8 }}
+            textColor={theme.colors.error}
+          >
+            Clear Stored Session
+          </Button>
           <GoogleSignInButton />
           
           <View style={styles.divider}>

@@ -43,25 +43,50 @@ export default function DashboardScreen() {
 
       // Track data fetching performance
       await measure('dashboard_data_fetch', async () => {
-        // Fetch current bookings, pending maintenance, and recent checklists in parallel
-        const [bookingsResponse, maintenanceResponse, checklistsResponse] = await Promise.all([
-          getData<Booking[]>('/bookings?status=active', 'dashboard_bookings', { 
+        // Fetch all data in parallel - filter locally instead of server-side filtering
+        const [allBookings, allMaintenance, allChecklists] = await Promise.all([
+          getData<Booking[]>('/bookings', 'dashboard_bookings', { 
             cacheTTL: 5 * 60 * 1000, // 5 minutes cache
             skipCache: isRefresh 
           }),
-          getData<MaintenanceRequest[]>('/maintenance?status=pending&limit=5', 'dashboard_maintenance', { 
+          getData<MaintenanceRequest[]>('/maintenance', 'dashboard_maintenance', { 
             cacheTTL: 3 * 60 * 1000, // 3 minutes cache
             skipCache: isRefresh 
           }),
-          getData<ExitChecklist[]>('/checklists?limit=1&sort=created_at&order=desc', 'dashboard_checklists', { 
+          getData<ExitChecklist[]>('/checklists', 'dashboard_checklists', { 
             cacheTTL: 10 * 60 * 1000, // 10 minutes cache
             skipCache: isRefresh 
           })
         ])
 
-        setCurrentBookings(bookingsResponse || [])
-        setPendingMaintenance(maintenanceResponse || [])
-        setRecentChecklists(checklistsResponse || [])
+        // Filter and process data locally for better performance
+        const now = new Date()
+        
+        // Get current/upcoming bookings (active or starting within 7 days)
+        const currentBookings = (allBookings || [])
+          .filter(booking => {
+            if (booking.is_cancelled) return false
+            const startDate = new Date(booking.start_date)
+            const endDate = new Date(booking.end_date)
+            // Show if currently active or starting within 7 days
+            return (now >= startDate && now <= endDate) || 
+                   (startDate > now && startDate.getTime() - now.getTime() < 7 * 24 * 60 * 60 * 1000)
+          })
+          .slice(0, 3) // Limit to 3 items
+
+        // Get pending maintenance (limit to 5)
+        const pendingMaintenance = (allMaintenance || [])
+          .filter(request => request.status === 'pending')
+          .slice(0, 5)
+
+        // Get recent checklists (limit to 1)
+        const recentChecklists = (allChecklists || [])
+          .sort((a, b) => new Date(b.created_at || b.createdAt).getTime() - new Date(a.created_at || a.createdAt).getTime())
+          .slice(0, 1)
+
+        setCurrentBookings(currentBookings)
+        setPendingMaintenance(pendingMaintenance)
+        setRecentChecklists(recentChecklists)
       }, { isRefresh })
       
     } catch (error) {
@@ -213,7 +238,7 @@ export default function DashboardScreen() {
               <View key={booking.id} style={styles.bookingItem}>
                 <View style={styles.bookingInfo}>
                   <Text variant="bodyLarge" style={[styles.bookingTitle, { color: theme.colors.onSurface }]}>
-                    {booking.user_name}
+                    {booking.guest_name}
                   </Text>
                   <Text variant="bodySmall" style={[styles.bookingDates, { color: theme.colors.onSurfaceVariant }]}>
                     {formatDate(booking.start_date)} - {formatDate(booking.end_date)}

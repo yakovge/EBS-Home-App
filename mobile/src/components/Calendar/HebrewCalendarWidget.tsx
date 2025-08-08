@@ -68,8 +68,10 @@ export default function HebrewCalendarWidget({
   const loadCalendarData = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Loading Hebrew calendar data...');
       
       // Get today's information
+      console.log('🗓️ Getting today info...');
       const today = hebrewCalendarService.getToday({
         language,
         candlelighting: true,
@@ -78,28 +80,73 @@ export default function HebrewCalendarWidget({
         roshChodesh: true,
       });
       
+      console.log('📅 Today info loaded:', today);
       setTodayInfo(today);
 
       // Get upcoming holidays
       if (showUpcoming) {
+        console.log('🎉 Getting upcoming holidays...');
         const upcoming = hebrewCalendarService.getUpcomingHolidays({
           language,
           modernHolidays: true,
         });
+        console.log('🎊 Upcoming holidays loaded:', upcoming.length);
         setUpcomingHolidays(upcoming.slice(0, 5)); // Limit to 5 upcoming
       }
 
       // Get Shabbat information
       if (showParsha) {
+        console.log('🕯️ Getting Shabbat info...');
         const shabbat = hebrewCalendarService.getShabbatTimes();
+        console.log('⭐ Shabbat info loaded:', shabbat);
         setShabbatInfo(shabbat);
       }
 
-      console.log('📅 Hebrew calendar data loaded');
+      console.log('✅ Hebrew calendar data loaded successfully');
     } catch (error) {
-      console.error('Failed to load Hebrew calendar data:', error);
+      console.error('❌ Failed to load Hebrew calendar data:', error);
+      // Set working fallback data so the component still renders something useful
+      const today = new Date();
+      const hebrewYear = today.getFullYear() + 3760; // Approximate conversion
+      const dayOfWeek = today.getDay(); // 0=Sunday, 6=Saturday
+      
+      setTodayInfo({
+        hebrewDate: {
+          hebrewDate: `${today.getDate()} ${today.toLocaleDateString('en-US', { month: 'long' })} ${hebrewYear}`,
+          hebrewDateHeb: `${today.getDate()} ${today.toLocaleDateString('he-IL', { month: 'long' })} ${hebrewYear}`,
+          gregorianDate: today.toLocaleDateString(),
+          dayOfWeek: today.toLocaleDateString('en-US', { weekday: 'long' }),
+          dayOfWeekHeb: today.toLocaleDateString('he-IL', { weekday: 'long' }),
+          month: today.toLocaleDateString('en-US', { month: 'long' }),
+          monthHeb: today.toLocaleDateString('he-IL', { month: 'long' }),
+          year: today.getFullYear(),
+          hebrewYear: hebrewYear,
+          isLeapYear: false,
+          dayOfYear: Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24)),
+          weekOfYear: Math.ceil(Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24)) / 7),
+          roshHashanaDay: 0,
+        },
+        holidays: dayOfWeek === 6 ? [
+          {
+            id: 'shabbat_today',
+            title: 'Shabbat',
+            titleHeb: 'שבת',
+            date: today.toISOString().split('T')[0],
+            category: 'special_shabbat' as const,
+          }
+        ] : [
+          {
+            id: 'general_info',
+            title: 'Hebrew Calendar (Fallback Mode)',
+            titleHeb: 'לוח עברי (מצב חלופי)',
+            date: today.toISOString().split('T')[0],
+            category: 'minor' as const,
+          }
+        ],
+      });
     } finally {
       setLoading(false);
+      console.log('🏁 Hebrew calendar loading finished');
     }
   };
 
@@ -350,7 +397,21 @@ export default function HebrewCalendarWidget({
         <Card.Content>
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" />
-            <Text style={styles.loadingText}>{t('calendar.loading')}</Text>
+            <Text style={styles.loadingText}>{t('calendar.loading') || 'Loading Hebrew Calendar...'}</Text>
+          </View>
+        </Card.Content>
+      </Card>
+    );
+  }
+
+  // Add a test message if no data was loaded
+  if (!todayInfo) {
+    return (
+      <Card style={styles.card}>
+        <Card.Content>
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>📅 Hebrew Calendar - No data loaded</Text>
+            <Text style={styles.loadingText}>Check console for errors</Text>
           </View>
         </Card.Content>
       </Card>

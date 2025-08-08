@@ -40,6 +40,7 @@ export default function BookingFormScreen() {
   // UI state
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [calendarKey, setCalendarKey] = useState(0)
   const [selectedDates, setSelectedDates] = useState<{[key: string]: any}>(() => {
     if (prefilledStartDate && prefilledEndDate) {
       const dates: {[key: string]: any} = {}
@@ -81,7 +82,7 @@ export default function BookingFormScreen() {
         const startDate = new Date(formData.start_date)
         const endDate = new Date(dateString)
         
-        if (endDate <= startDate) {
+        if (endDate < startDate) {
           Alert.alert(t('common.error'), t('booking.endDateError'))
           return
         }
@@ -136,7 +137,7 @@ export default function BookingFormScreen() {
     if (formData.start_date && formData.end_date) {
       const startDate = new Date(formData.start_date)
       const endDate = new Date(formData.end_date)
-      if (endDate <= startDate) {
+      if (endDate < startDate) {
         newErrors.end_date = t('booking.endDateError')
       }
     }
@@ -204,6 +205,11 @@ export default function BookingFormScreen() {
     setErrors(prev => ({ ...prev, start_date: '', end_date: '' }))
   }
 
+  const goToCurrentMonth = () => {
+    // Force calendar to re-render with current month
+    setCalendarKey(prev => prev + 1)
+  }
+
   if (loading) {
     return <LoadingSpinner text={t('booking.creatingBooking')} fullScreen />
   }
@@ -218,9 +224,20 @@ export default function BookingFormScreen() {
           
           {/* Date Selection */}
           <View style={styles.section}>
-            <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-              {t('booking.selectDates')}
-            </Text>
+            <View style={styles.sectionHeader}>
+              <Text variant="titleMedium" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
+                {t('booking.selectDates')}
+              </Text>
+              <Button
+                mode="outlined"
+                onPress={goToCurrentMonth}
+                icon="calendar-today"
+                compact
+                style={styles.todayButton}
+              >
+                Today
+              </Button>
+            </View>
             
             <View style={styles.dateInfo}>
               <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
@@ -237,6 +254,8 @@ export default function BookingFormScreen() {
             </View>
             
             <Calendar
+              key={calendarKey}
+              current={new Date().toISOString().split('T')[0]}
               onDayPress={handleDateSelect}
               markedDates={selectedDates}
               markingType="period"
@@ -324,9 +343,18 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 24,
   },
-  sectionTitle: {
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
+  },
+  sectionTitle: {
+    marginBottom: 0,
     fontWeight: '500',
+  },
+  todayButton: {
+    minWidth: 70,
   },
   dateInfo: {
     marginBottom: 12,
